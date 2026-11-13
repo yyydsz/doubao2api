@@ -30,6 +30,7 @@ ACCOUNTS_FILE = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "doubao2api", "accounts.json"),
 )
 LISTEN = os.environ.get("LISTEN", "127.0.0.1:8860")
+PANEL_AUTH = os.environ.get("PANEL_AUTH", "")  # "user:pass"，空=不鉴权
 DB_PATH = os.environ.get("DB_PATH", os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel.db"))
 
 
@@ -236,6 +237,24 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # 静音默认访问日志
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
+    def _check_auth(self):
+        """Basic Auth：PANEL_AUTH 为空时放行。"""
+        if not PANEL_AUTH:
+            return True
+        import base64
+        h = self.headers.get("Authorization", "")
+        if h.startswith("Basic "):
+            try:
+                if base64.b64decode(h[6:]).decode() == PANEL_AUTH:
+                    return True
+            except Exception:
+                pass
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="doubao-manager"')
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     # ---- 基础输出 ----
     def _json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode()
@@ -256,6 +275,8 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---- 路由 ----
     def do_GET(self):
+        if not self._check_auth():
+            return
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         if u.path == "/":
@@ -281,6 +302,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": {"message": "not found"}}, 404)
 
     def do_POST(self):
+        if not self._check_auth():
+            return
         u = urllib.parse.urlparse(self.path)
         if u.path == "/api/accounts":
             b = self._read()
@@ -310,6 +333,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"error": {"message": "not found"}}, 404)
 
     def do_DELETE(self):
+        if not self._check_auth():
+            return
         u = urllib.parse.urlparse(self.path)
         q = urllib.parse.parse_qs(u.query)
         if u.path == "/api/accounts":

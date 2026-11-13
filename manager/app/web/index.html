@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>豆包管理器</title>
+<style>
+:root{
+  --bg:#0b0e13; --side:#0f141b; --card:#141a23; --line:#1f2833;
+  --fg:#e6edf3; --dim:#8b949e; --accent:#3fb950; --accent2:#2ea043;
+  --warn:#d29922; --bad:#f85149; --blue:#58a6ff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+.layout{display:flex;min-height:100vh}
+/* 侧栏 */
+aside{width:212px;flex:none;background:var(--side);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.brand h1{font-size:15px;margin:0 0 2px;letter-spacing:.3px}
+.brand span{font-size:11px;color:var(--dim)}
+nav{padding:10px 8px;display:flex;flex-direction:column;gap:2px}
+nav a{padding:9px 12px;border-radius:8px;color:var(--dim);text-decoration:none;font-size:13px;
+  display:flex;align-items:center;gap:9px;cursor:pointer}
+nav a:hover{background:#161d27;color:var(--fg)}
+nav a.on{background:rgba(63,185,80,.12);color:var(--accent);font-weight:600}
+nav a i{width:16px;text-align:center;font-style:normal;opacity:.9}
+.sidefoot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--dim)}
+/* 主区 */
+main{flex:1;min-width:0;padding:22px 26px 40px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.topbar h2{margin:0;font-size:17px;font-weight:600}
+.pill{padding:3px 10px;border-radius:99px;font-size:12px;border:1px solid transparent;white-space:nowrap}
+.ok{background:rgba(63,185,80,.14);color:var(--accent);border-color:rgba(63,185,80,.3)}
+.warn{background:rgba(210,153,34,.14);color:var(--warn);border-color:rgba(210,153,34,.3)}
+.bad{background:rgba(248,81,73,.14);color:var(--bad);border-color:rgba(248,81,73,.3)}
+.grid{display:grid;gap:14px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card .k{font-size:12px;color:var(--dim);margin-bottom:6px}
+.card .v{font-size:24px;font-weight:600;letter-spacing:.5px}
+.card .v small{font-size:12px;color:var(--dim);font-weight:400;margin-left:4px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.panel-h{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;
+  justify-content:space-between;font-size:13px;font-weight:600}
+.panel-b{padding:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+th{color:var(--dim);font-weight:500;font-size:12px}
+tr:last-child td{border-bottom:0}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--dim);
+  word-break:break-all;max-width:420px;display:inline-block}
+input,textarea,select{background:#0d131a;border:1px solid var(--line);color:var(--fg);
+  border-radius:8px;padding:8px 10px;font:inherit;width:100%}
+textarea{min-height:88px;font-family:ui-monospace,monospace;font-size:12px}
+button{background:var(--accent2);color:#04140a;border:0;border-radius:8px;padding:8px 14px;
+  font-weight:600;font-size:13px;cursor:pointer}
+button:hover{background:var(--accent)}
+button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line);font-weight:500}
+button.ghost:hover{border-color:var(--dim)}
+button.danger{background:transparent;color:var(--bad);border:1px solid rgba(248,81,73,.35);font-weight:500}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:none}
+.grow{flex:1 1 180px}
+pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:12px;
+  max-height:360px;overflow:auto;font-size:12px;white-space:pre-wrap;margin:0}
+.empty{padding:26px;text-align:center;color:var(--dim);font-size:13px}
+.tag{font-size:11px;padding:1px 7px;border-radius:6px;background:#1b2430;color:var(--dim)}
+#toast{position:fixed;right:20px;bottom:20px;z-index:99;display:flex;flex-direction:column;gap:8px}
+.toast{background:#18212c;border:1px solid var(--line);border-left:3px solid var(--accent);
+  padding:10px 14px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast.err{border-left-color:var(--bad)}
+@media(max-width:820px){
+  aside{display:none} main{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside>
+    <div class="brand"><h1>豆包管理器</h1><span>doubao2api · 号池控制台</span></div>
+    <nav>
+      <a data-v="overview" class="on"><i>◈</i>概览</a>
+      <a data-v="accounts"><i>◉</i>账号</a>
+      <a data-v="pool"><i>◎</i>号池</a>
+      <a data-v="logs"><i>≡</i>请求日志</a>
+      <a data-v="test"><i>▶</i>测试台</a>
+      <a data-v="settings"><i>⚙</i>设置</a>
+    </nav>
+    <div class="sidefoot">网关 <span id="gwbase">-</span></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <h2 id="title">概览</h2>
+      <span id="gwstate" class="pill warn">检测中…</span>
+    </div>
+
+    <!-- 概览 -->
+    <section id="v-overview">
+      <div class="grid cards">
+        <div class="card"><div class="k">启用账号</div><div class="v" id="c-acc">-</div></div>
+        <div class="card"><div class="k">号池健康</div><div class="v" id="c-healthy">-</div></div>
+        <div class="card"><div class="k">今日请求</div><div class="v" id="c-req">-</div></div>
+        <div class="card"><div class="k">平均延迟</div><div class="v" id="c-lat">-<small>ms</small></div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">号池实时状态 <button class="ghost" onclick="loadOverview()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-overview"></table></div>
+      </div>
+    </section>
+
+    <!-- 账号 -->
+    <section id="v-accounts" style="display:none">
+      <div class="panel">
+        <div class="panel-h">新增 / 更新账号 <span class="tag">保存后自动热加载到网关</span></div>
+        <div class="panel-b">
+          <div class="row" style="margin-bottom:10px">
+            <input id="a-name" class="grow" placeholder="账号名（唯一，如 acc-1）">
+            <input id="a-dev" class="grow" placeholder="device_id（可选）">
+            <input id="a-web" class="grow" placeholder="web_id（可选）">
+          </div>
+          <textarea id="a-cookie" placeholder="Cookie：sessionid=...; sid_tt=...; ttwid=...; s_v_web_id=...; odin_tt=...; passport_csrf_token=..."></textarea>
+          <div class="row" style="margin-top:10px">
+            <input id="a-note" class="grow" placeholder="备注">
+            <button onclick="saveAccount()">保存账号</button>
+            <button class="ghost" onclick="qrStart()">扫码加号</button>
+          </div>
+          <div id="qrbox" style="display:none;margin-top:14px" class="row">
+            <img id="qrimg" style="width:190px;height:190px;background:#fff;padding:8px;border-radius:10px" alt="二维码">
+            <div><div id="qrtext" class="mono">等待扫码…</div><button class="ghost" style="margin-top:8px" onclick="qrStop()">取消</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">账号列表 <button class="ghost" onclick="loadAccounts()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-accounts"></table></div>
+      </div>
+    </section>
+
+    <!-- 号池 -->
+    <section id="v-pool" style="display:none">
+      <div class="panel">
+        <div class="panel-h">网关号池（实时） <button class="ghost" onclick="loadPool()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-pool"></table></div>
+      </div>
+    </section>
+
+    <!-- 日志 -->
+    <section id="v-logs" style="display:none">
+      <div class="panel">
+        <div class="panel-h">最近请求 <button class="ghost" onclick="loadLogs()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-logs"></table></div>
+      </div>
+    </section>
+
+    <!-- 测试台 -->
+    <section id="v-test" style="display:none">
+      <div class="panel">
+        <div class="panel-h">对话测试（直连网关 SSE）</div>
+        <div class="panel-b">
+          <div class="row" style="margin-bottom:10px">
+            <input id="t-model" class="grow" value="deepseek" placeholder="模型">
+            <input id="t-conv" class="grow" value="panel-test" placeholder="会话 ID">
+            <button onclick="runTest()">发送</button>
+          </div>
+          <textarea id="t-msg">你好，你是什么模型</textarea>
+          <pre id="t-out" style="margin-top:12px">（输出会显示在这里）</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- 设置 -->
+    <section id="v-settings" style="display:none">
+      <div class="panel">
+        <div class="panel-h">运行配置 <span class="tag">只读</span></div>
+        <div class="panel-b"><pre id="p-settings">加载中…</pre></div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script>
+const $=s=>document.querySelector(s);
+const TITLES={overview:'概览',accounts:'账号',pool:'号池',logs:'请求日志',test:'测试台',settings:'设置'};
+let qrTimer=null,qrId=null;
+
+function toast(msg,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=msg;
+  $('#toast').appendChild(d);setTimeout(()=>d.remove(),3200);}
+async function api(path,opt){try{const r=await fetch(path,opt);return await r.json();}
+  catch(e){toast('请求失败: '+e,true);return {};}}
+
+document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
+  const v=a.dataset.v;
+  ['overview','accounts','pool','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
+  $('#title').textContent=TITLES[v];
+  if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
+  if(v==='pool')loadPool(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings();
+});
+
+async function loadOverview(){
+  const d=await api('/api/overview');
+  const g=d.gateway||{};
+  const on=!g.error;
+  const el=$('#gwstate');
+  el.className='pill '+(on?'ok':'bad');
+  el.textContent=on?`网关在线 · ${g.healthy}/${g.total}`:'网关离线';
+  $('#c-acc').textContent=d.accounts_enabled??'-';
+  $('#c-healthy').textContent=on?`${g.healthy} / ${g.total}`:'-';
+  $('#c-req').textContent=d.requests_today??'-';
+  $('#c-lat').innerHTML=(d.avg_latency_ms??'-')+'<small>ms</small>';
+  const rows=(g.accounts||[]).map(a=>`<tr><td>${a.name}</td>
+    <td>${a.disabled?'<span class="pill bad">停用</span>':(a.cooling?'<span class="pill warn">冷却</span>':'<span class="pill ok">在线</span>')}</td>
+    <td class="mono">${a.reason||'-'}</td><td>${a.fails||0}</td></tr>`).join('');
+  $('#t-overview').innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>原因</th><th>失败</th></tr></thead><tbody>${rows||'<tr><td colspan=4 class="empty">暂无数据</td></tr>'}</tbody>`;
+}
+
+async function loadAccounts(){
+  const d=await api('/api/accounts');
+  const rows=(d.accounts||[]).map(a=>`<tr>
+    <td>${a.name}</td><td class="mono">${a.device_id||'-'}</td><td>${a.note||''}</td>
+    <td>${a.enabled?'<span class="pill ok">启用</span>':'<span class="pill bad">停用</span>'}</td>
+    <td><button class="ghost" onclick="toggleAcc('${a.name}')">${a.enabled?'停用':'启用'}</button>
+        <button class="danger" onclick="delAcc('${a.name}')">删除</button></td></tr>`).join('');
+  $('#t-accounts').innerHTML=`<thead><tr><th>账号</th><th>device_id</th><th>备注</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=5 class="empty">还没有账号，先在上面添加</td></tr>'}</tbody>`;
+}
+
+async function saveAccount(){
+  const body={name:$('#a-name').value.trim(),cookie:$('#a-cookie').value.trim(),
+    device_id:$('#a-dev').value.trim(),web_id:$('#a-web').value.trim(),note:$('#a-note').value.trim()};
+  if(!body.name||!body.cookie)return toast('账号名和 Cookie 必填',true);
+  const r=await api('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(r.ok){toast('已保存并热加载');$('#a-cookie').value='';loadAccounts();loadOverview();}
+  else toast('保存失败: '+JSON.stringify(r),true);
+}
+async function delAcc(n){if(!confirm('删除账号 '+n+' ？'))return;await api('/api/accounts/'+encodeURIComponent(n),{method:'DELETE'});toast('已删除');loadAccounts();}
+async function toggleAcc(n){await api(`/api/accounts/${encodeURIComponent(n)}/toggle`,{method:'POST'});loadAccounts();}
+
+async function loadPool(){
+  const d=await api('/api/pool');
+  const rows=(d.accounts||[]).map(a=>`<tr><td>${a.name}</td>
+    <td>${a.disabled?'<span class="pill bad">停用</span>':(a.cooling?'<span class="pill warn">冷却中</span>':'<span class="pill ok">可用</span>')}</td>
+    <td>${a.fails||0}</td><td class="mono">${a.device_id||'-'}</td>
+    <td class="mono">${a.reason||'-'}</td></tr>`).join('');
+  $('#t-pool').innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>失败</th><th>device</th><th>原因</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=5 class="empty">号池为空</td></tr>'}</tbody>`;
+}
+
+async function loadLogs(){
+  const d=await api('/api/logs?limit=50');
+  const rows=(d.logs||[]).map(l=>`<tr><td class="mono">${l.ts}</td><td>${l.model}</td>
+    <td>${l.status===200?'<span class="pill ok">200</span>':'<span class="pill bad">'+l.status+'</span>'}</td>
+    <td>${l.latency_ms}ms</td><td>${l.chars}</td><td class="mono">${l.conv||'-'}</td>
+    <td class="mono">${(l.error||'').slice(0,60)}</td></tr>`).join('');
+  $('#t-logs').innerHTML=`<thead><tr><th>时间</th><th>模型</th><th>状态</th><th>耗时</th><th>字符</th><th>会话</th><th>错误</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=7 class="empty">暂无记录（在测试台发一条就会记录）</td></tr>'}</tbody>`;
+}
+
+async function loadSettings(){
+  const d=await api('/api/settings');
+  $('#gwbase').textContent=d.gw_base||'-';
+  $('#p-settings').textContent=JSON.stringify(d,null,2);
+}
+
+async function runTest(){
+  const out=$('#t-out'); out.textContent='';
+  const resp=await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:$('#t-model').value,conversation_id:$('#t-conv').value,message:$('#t-msg').value})});
+  const rd=resp.body.getReader(),dec=new TextDecoder();
+  for(;;){const {value,done}=await rd.read();if(done)break;out.textContent+=dec.decode(value,{stream:true});out.scrollTop=out.scrollHeight;}
+  toast('完成，已记入日志');
+}
+
+async function qrStart(){
+  $('#qrbox').style.display='flex';$('#qrtext').textContent='请求二维码…';
+  const r=await api('/api/qr',{method:'POST'});
+  if(r.error){$('#qrtext').textContent='失败: '+(r.error.message||JSON.stringify(r));return;}
+  qrId=r.id;
+  if(r.image){$('#qrimg').src=r.image.startsWith('data:')?r.image:'data:image/png;base64,'+r.image;
+    $('#qrimg').style.display='block';}else{$('#qrimg').style.display='none';
+    $('#qrtext').textContent='二维码链接: '+(r.qrcode_url||'-');}
+  qrTimer=setInterval(qrPoll,2000);
+}
+async function qrPoll(){
+  if(!qrId)return;const r=await api('/api/qr/'+qrId);
+  const m={waiting:'等待扫码…',scanned:'已扫码，请确认',confirmed:'登录成功，已入池',expired:'已过期',canceled:'已取消'};
+  $('#qrtext').textContent=m[r.status]||r.status;
+  if(r.status==='confirmed'){qrStop();loadAccounts();loadOverview();}
+  if(r.status==='expired'||r.status==='canceled')qrStop();
+}
+function qrStop(){if(qrTimer)clearInterval(qrTimer);qrTimer=null;qrId=null;$('#qrbox').style.display='none';}
+
+loadOverview();loadSettings();setInterval(()=>{if($('#v-overview').style.display!=='none')loadOverview();},15000);
+</script>
+</body>
+</html>
