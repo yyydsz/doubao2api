@@ -165,9 +165,7 @@ func (c *Config) applyDefaults() error {
 			c.Upstream.Query[k] = v
 		}
 	}
-	if len(c.Accounts) == 0 {
-		return fmt.Errorf("accounts 不能为空：至少配置一个豆包账号 Cookie")
-	}
+
 	for i := range c.Accounts {
 		if c.Accounts[i].Name == "" {
 			c.Accounts[i].Name = fmt.Sprintf("acct-%d", i+1)
