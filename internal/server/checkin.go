@@ -18,6 +18,7 @@ type checkinResult struct {
 	Status  string `json:"status"`  // ok / already / no_campaign / error
 	Message string `json:"message"`
 	Reward  string `json:"reward,omitempty"`
+	Days    int    `json:"days,omitempty"`
 	TS      int64  `json:"ts"`
 }
 
@@ -54,12 +55,9 @@ func (s *Server) doCheckin(name, cookie, dev string) checkinResult {
 
 	scene := s.cfg.Checkin.Scene
 	if scene == "" {
-		scene = "home"
+		scene = "pc_incentive_task_mvp_v3" // 实测：工作模式「每日签到」活动
 	}
-	body, _ := json.Marshal(map[string]any{
-		"scene":      scene,
-		"biz_params": map[string]any{},
-	})
+	body, _ := json.Marshal(map[string]any{"scene": scene})
 	req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(body))
 	if err != nil {
 		res.Status, res.Message = "error", err.Error()
@@ -80,17 +78,34 @@ func (s *Server) doCheckin(name, cookie, dev string) checkinResult {
 	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 
 	var payload struct {
-		Code    int             `json:"code"`
-		Msg     string          `json:"msg"`
-		Message string          `json:"message"`
-		Data    json.RawMessage `json:"data"`
+		Code    int    `json:"code"`
+		Msg     string `json:"msg"`
+		Message string `json:"message"`
+		Data    struct {
+			CheckedIn      bool   `json:"checked_in"`
+			CheckinDate    string `json:"checkin_date"`
+			ContinuousDays int    `json:"continuous_days"`
+			Idempotent     bool   `json:"idempotent"`
+			RewardAmount   int    `json:"reward_amount"`
+			RewardType     string `json:"reward_type"`
+		} `json:"data"`
 	}
 	_ = json.Unmarshal(raw, &payload)
 
+	if payload.Code != 0 {
+		logf("checkin_raw acct=%s http=%d body=%s", name, resp.StatusCode, truncate(string(raw), 300))
+	}
 	switch {
-	case resp.StatusCode == http.StatusOK && payload.Code == 0:
-		res.Status, res.Message = "ok", "签到成功"
-		res.Reward = extractReward(payload.Data)
+	case resp.StatusCode == http.StatusOK && payload.Code == 0 && payload.Data.Idempotent:
+		res.Status = "already"
+		res.Message = "今日已签到（幂等命中）"
+		res.Reward = formatReward(payload.Data.RewardAmount)
+		res.Days = payload.Data.ContinuousDays
+	case resp.StatusCode == http.StatusOK && payload.Code == 0 && payload.Data.CheckedIn:
+		res.Status = "ok"
+		res.Message = "签到成功"
+		res.Reward = formatReward(payload.Data.RewardAmount)
+		res.Days = payload.Data.ContinuousDays
 	case strings.Contains(payload.Message, "already") || strings.Contains(payload.Msg, "已签到"):
 		res.Status, res.Message = "already", "今日已签到"
 	case payload.Code == 710010702:
@@ -204,4 +219,12 @@ func (s *Server) adminCheckinStatus(w http.ResponseWriter, r *http.Request) {
 		"scene":       s.cfg.Checkin.Scene,
 		"server_time": time.Now().Format("2006-01-02 15:04:05"),
 	})
+}
+
+// formatReward 把积分数量格式化成文本。
+func formatReward(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return itoaSimple(n) + " 积分"
 }

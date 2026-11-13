@@ -156,7 +156,8 @@ func numOf(v any) float64 {
 		f, _ := t.Float64()
 		return f
 	case string:
-		f, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		clean := strings.NewReplacer(",", "", " ", "", "¥", "", "$", "").Replace(t)
+		f, err := strconv.ParseFloat(strings.TrimSpace(clean), 64)
 		if err == nil {
 			return f
 		}
