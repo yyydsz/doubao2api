@@ -1,103 +1,215 @@
 # doubao2api
 
-按 **workbuddy2api** 的架构，把**豆包客户端「工作模式」**的 `/chat/completion` 包装成 OpenAI 兼容接口。
+把**豆包客户端「工作模式」**的 `/chat/completion` 协议包装成 **OpenAI 兼容**接口，附带号池管理与密钥分发面板。
+
+单二进制 Go 网关 + 单文件 Python 面板，网关零第三方 Go 依赖。
 
 ```
-OpenAI SDK ──/v1/chat/completions──▶ doubao2api ──/chat/completion──▶ www.doubao.com
-                                        │
-                          账号池(Cookie) / 会话粘性 / 错误策略 / SSE 转换 / 心跳
+OpenAI SDK / DSH / Cherry Studio
+        │  POST /v1/chat/completions
+        ▼
+   ┌─────────────┐
+   │  doubao2api │  号池 / 会话粘性 / 错误策略 / SSE 转换 / 心跳
+   └─────────────┘
+        │  POST https://www.doubao.com/chat/completion
+        ▼
+      豆包（agent_mode=1 工作模式，模型由 model_item_key 决定）
 ```
 
-## 与 workbuddy2api 的对应关系
+---
 
-| workbuddy2api | doubao2api |
-|---|---|
-| 账号池（token 文件） | **账号池（Cookie 串）** |
-| `/v1/chat/completions` 上游 | `/chat/completion`（patch/SSE） |
-| 会话粘性保前缀缓存 | 会话粘性 + **conversation_id 复用**（多轮） |
-| 大请求预算 | 同（复用同一实现） |
-| 上游错误分类（ErrKind） | HTTP 401/403/429/5xx + `end_type≠1` |
-| SSE 帧序修正 / 截断判定 | `CHUNK_DELTA` / `brief` 兜底 |
+## 功能
 
-## 已实现
+### 网关
 
-- OpenAI `/v1/chat/completions`（流式 + 非流式）、`/v1/models`、`/healthz`、`/status`
-- 请求翻译：`messages[]` → `content_block[block_type=10000]`；工作模式参数（`agent_mode=1`、`conversation_mode=2`、`mode_id`、`reasoning_effort`、`model_item_key`）
-- 响应翻译：`CHUNK_DELTA.text` → `delta.content`；`block_type=10040` → `delta.reasoning_content`；`SSE_REPLY_END.brief` 兜底；`[DONE]` 收尾
-- 多轮：`SSE_ACK` 取 `conversation_id`/`section_id`，按会话键复用；首轮可把历史压平成一段（`flatten_history`）
-- 账号池：401/403 停用、429 冷却、5xx 短冷却、粘性绑定、大请求预算
-- SSE 心跳（`heartbeat_seconds`）：上游静默时下发 `: ping`
-- 模型别名：`doubao` / `deepseek` → `person-deepseek-v4-1-flash-261017`（可改）
-- 签名扩展位：`upstream.a_bogus`（固定值调试）与 `upstream.sign_command`（外部命令现算）
+- `/v1/chat/completions`：流式 + 非流式，OpenAI 协议
+- `/v1/models`：模型清单（支持别名）
+- 请求翻译：`messages[]` → 豆包 `content_block[block_type=10000]`；`option.agent_mode=1`、`conversation_mode=2`、`mode_id`、`reasoning_effort`、`model_item_key`
+- 响应翻译：`CHUNK_DELTA.text` → `delta.content`；`block_type=10040` → `delta.reasoning_content`；`SSE_REPLY_END.brief` 兜底
+- 多轮：`SSE_ACK` 取 `conversation_id` / `section_id` 复用，首轮可压平历史
+- **号池**：Cookie 账号池、会话粘性、冷却/停用、大请求预算
+- **SSE 心跳**：上游静默超过阈值下发 `: ping`，防中间层判超时断流
+- **多密钥分发**：`/v1/*` 校验密钥，按密钥统计 token 用量
+- **管理接口**：`/admin/*` 仅回环可访问（与面板同机）
 
-## 配置要点
+### 面板
 
-| 键 | 说明 |
-|---|---|
-| `accounts[].cookie` | 豆包登录态 Cookie（`sessionid`/`sid_tt`/`ttwid`/`s_v_web_id`/`odin_tt`…） |
-| `accounts[].device_id` / `web_id` | 与 Cookie 同源的设备标识；缺省由 Cookie 派生 |
-| `work_mode.enabled` | 是否按工作模式（`agent_mode=1`）发请求；关闭则为普通对话 |
-| `work_mode.enable_sandbox` | 工作模式会在本机起沙箱；纯聊天建议 `false` |
-| `upstream.flatten_history` | 首轮把历史拼成一段（否则只发最后一条） |
-| `upstream.a_bogus` / `sign_command` | 签名：固定值或外部命令（stdin=完整 URL，stdout=a_bogus） |
+- 概览：剩余额度、今日消耗、号池健康、请求数、平均延迟
+- 账号：扫码加号、账号列表、启停、删除
+- 号池：实时状态（在线 / 冷却 / 停用、失败次数）
+- 密钥：生成 / 复制 / 删除，**分密钥 token 用量**（7 天 + 今日）
+- 测试台：模型下拉 + 思考强度 + 流式逐字渲染 + 可中断
+- 请求日志：时间、模型、状态、耗时、字符、会话
 
-## 运行
+---
+
+## 快速开始
+
+### 1. 编译网关
 
 ```bash
-cp config.example.json config.json    # 填 accounts[].cookie / device_id / web_id
+git clone https://github.com/yyydsz/doubao2api
+cd doubao2api
 go build -trimpath -o doubao2api ./cmd/server
+```
+
+### 2. 配置
+
+```bash
+cp config.example.json config.json
+```
+
+最少需要填 `accounts[].cookie`（豆包登录态 Cookie）；也可以留空，启动后在面板里添加。
+
+```jsonc
+{
+  "listen": "127.0.0.1:8850",
+  "api_keys": [],                        // 留空：由面板生成写入 keys.json
+  "upstream": {
+    "chat_url": "https://www.doubao.com/chat/completion",
+    "heartbeat_seconds": 15,
+    "flatten_history": true
+  },
+  "accounts": [],                        // 留空：由面板写入 accounts.json
+  "default_model": "doubao",
+  "model_aliases": { "deepseek": "person-deepseek-v4-1-flash-261017" },
+  "work_mode": {
+    "enabled": true,
+    "bot_id": "7338286299411103781",
+    "mode_id": "3",
+    "reasoning_effort": "4"
+  }
+}
+```
+
+### 3. 启动网关
+
+```bash
 ./doubao2api -config config.json
 ```
 
-```bash
-export OPENAI_BASE_URL=http://127.0.0.1:8850/v1
-export OPENAI_API_KEY=sk-downstream-change-me
-
-curl -N $OPENAI_BASE_URL/chat/completions \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"deepseek","stream":true,"metadata":{"conversation_id":"demo-1"},
-       "messages":[{"role":"user","content":"你好"}]}'
-```
-
-## 测试
-
-```bash
-go test ./...
-```
-
-覆盖：请求体关键字段（`model_item_key`/`agent_mode`/`conversation_mode`/`support_chunk_delta`）、
-非流式拼接、流式增量与 `reasoning_content`、`[DONE]`、**conversation_id 复用**、下游鉴权、401 换号重试。
-
-单元测试用内置假上游（复刻实抓 SSE 序列），不需要真实 Cookie。
-
-## 已知限制 / 待办
-
-1. **`a_bogus` 签名未验证**：实抓请求带 `msToken`+`a_bogus`；本版本默认不带，需实测服务端是否放行。
-   若拒绝，用 `sign_command` 挂 Node 签名脚本（BDMS）。
-2. 工作模式会触发本机 sandbox；headless 场景需 `enable_sandbox=false` 并把 `workspace` 指到真实目录。
-3. `usage` 未实现（豆包 SSE 未返回 token 计数），目前返回 0。
-4. 未实现附件/图片消息（只有文本块）。
-
-## 管理面板（manager/）
-
-`manager/app.py` 是配套的号池管理面板，**纯 Python 标准库**，零依赖、无构建：
+### 4. 启动面板
 
 ```bash
 cd manager
-GW_BASE=http://127.0.0.1:8850 GW_KEY=<下游密钥> python3 app.py
-# 打开 http://127.0.0.1:8860
+python3 -m venv venv && ./venv/bin/pip install fastapi "uvicorn[standard]"
+GW_BASE=http://127.0.0.1:8850 PANEL_AUTH=admin:yourpass \
+  ./venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8860
 ```
 
-能力：账号增删改（写 `accounts.json` → 调网关 `/admin/reload` 热加载）、号池状态、聊天测试（SSE 透传）、扫码加号入口。
+浏览器打开 `http://127.0.0.1:8860` → 「密钥」页生成 key → 「测试台」直接对话。
 
-### 网关管理接口
+### 5. 客户端配置
 
-| 接口 | 说明 |
-|---|---|
-| `GET /admin/accounts` | 账号 + 冷却/停用状态（不下发 Cookie） |
-| `POST /admin/reload` | 从 `accounts.json` 热加载（只增不减） |
-| `POST /admin/cookie` | 单账号 Cookie 热更新 |
-| `DELETE /admin/accounts?name=` | 移出号池 |
-| `POST /admin/accounts/qr` | 创建扫码会话 |
-| `GET /admin/accounts/qr?id=` | 轮询扫码状态，确认后自动入池 |
+```bash
+export OPENAI_BASE_URL=http://127.0.0.1:8850/v1
+export OPENAI_API_KEY=sk-xxxxxxxx        # 面板「密钥」页生成
+```
+
+---
+
+## 接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/v1/chat/completions` | OpenAI 兼容对话（流式 / 非流式） |
+| GET | `/v1/models` | 模型清单 |
+| GET | `/healthz` | 健康检查 |
+| GET | `/admin/accounts` | 号池状态 |
+| POST | `/admin/reload` | 从 `accounts.json` 热加载 |
+| POST | `/admin/cookie` | 单账号 Cookie 热更新 |
+| DELETE | `/admin/accounts?name=` | 移出号池 |
+| POST / GET | `/admin/accounts/qr` | 扫码会话创建 / 轮询 |
+| GET | `/admin/quota` | 剩余额度（豆包 commerce 接口） |
+| GET / POST / DELETE | `/admin/keys` | 密钥管理 |
+| GET | `/admin/usage?days=7` | 按密钥聚合用量 |
+
+> `/admin/*` 仅允许回环地址；`/v1/*` 必须携带有效密钥；未创建密钥时返回明确提示而非放行。
+
+---
+
+## 协议要点（实测）
+
+工作模式与普通对话共用同一端点，靠参数区分：
+
+| 字段 | 值 | 含义 |
+|---|---|---|
+| `option.agent_mode` | `1` | 工作模式 |
+| `option.conversation_mode` | `2` | 工作模式会话 |
+| `option.mode_id` | `"3"` | 模式 |
+| `option.model_config.model_item_key` | 如 `person-deepseek-v4-1-flash-261017` | **选模型** |
+| `option.aggregate_params.model_item_key` | 同上 | 三处需一致 |
+| `option.sse_recv_event_options.support_chunk_delta` | `true` | 开启 `CHUNK_DELTA` 文本增量 |
+| `option.conversation_init_ext.reasoning_effort` | `"0"`..`"4"` | 思考强度 |
+
+响应事件顺序（实测）：
+
+```
+SSE_HEARTBEAT     {}                                  心跳
+SSE_ACK           conversation_id / section_id        建会话回执
+FULL_MSG_NOTIFY   用户消息入库回执
+STREAM_MSG_NOTIFY 首帧壳（agent_id / model_id）
+STREAM_CHUNK      patch_op[]（10000 正文 / 10040 思考 / 111 tts）
+CHUNK_DELTA       {"text": "..."}                     正文增量（优先）
+SSE_REPLY_END     end_type=1 时 msg_finish_attr.brief 完整答案（兜底）
+```
+
+额度查询（面板「剩余额度」）：
+
+```
+POST https://www.doubao.com/alice/commerce/sale/subscription/quota/summary/
+→ data.*.window_limits[].{total_amount, used_amount, used_percent}
+```
+
+---
+
+## 已知限制
+
+1. **扫码登录**：Passport `get_qrcode` 在客户端侧带 `sign` / `a_bogus` / `x-tt-passport-aid-sign` 三层签名，纯 HTTP 复刻不稳定。内置参数可生成二维码，但 App 侧确认环节仍可能失败——**推荐「抓包 Cookie 导入」**。
+2. **token 用量为估算**：豆包 SSE 不返回 usage，按输出字符 ÷1.7 折算。
+3. 工作模式会触发本机 sandbox，headless 场景需 `work_mode.enable_sandbox=false`。
+4. 仅支持文本消息，附件/图片未实现。
+5. 本项目为协议研究用途，账号与额度风险自负。
+
+---
+
+## 从抓包导入账号
+
+豆包客户端登录后，其请求头里的 Cookie 即完整登录态：
+
+```bash
+cat > /opt/doubao2api/accounts.json <<'EOF'
+{"accounts":[{"name":"main","cookie":"sessionid=...; sid_tt=...; ttwid=...; s_v_web_id=...; odin_tt=...; passport_csrf_token=...","device_id":"<设备ID>","web_id":"<web_id>","local_app_id":"582478"}]}
+EOF
+sudo systemctl restart doubao2api     # 启动时自动加载 accounts.json
+```
+
+---
+
+## 目录结构
+
+```
+cmd/server/          启动入口
+internal/config/     配置加载（账号 / 工作模式 / QR / 池参数）
+internal/doubao/     请求体构造 + SSE 解析
+internal/pool/       号池（粘性 / 冷却 / 停用 / 大请求预算）
+internal/server/     HTTP 层：协议转换、调度、密钥、额度、扫码
+manager/app/         面板（FastAPI + 单页前端）
+```
+
+---
+
+## 鸣谢
+
+本项目的设计大量借鉴了以下两个项目，特此致谢：
+
+- **[ithtelab/workbuddy-manager](https://github.com/ithtelab/workbuddy-manager)** —— 号池 + 管理面板的整体架构、会话粘性与大请求预算的设计、面板的交互形态，均参考自该项目。
+- **workbuddy2api** —— 上游协议适配层（OpenAI 门面 / SSE 转换 / 错误分级 / 粘性调度）的实现范式源自它，本项目的网关结构与之同构。
+
+没有这两个项目的前期探索，就没有这套「协议逆向 → OpenAI 兼容 → 可运营」的落地路径。
+
+---
+
+## License
+
+MIT
