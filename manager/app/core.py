@@ -12,6 +12,7 @@ import urllib.request
 
 GW_BASE = os.environ.get("GW_BASE", "http://127.0.0.1:8850").rstrip("/")
 GW_KEY = os.environ.get("GW_KEY", "")
+GW_ADMIN_TOKEN = os.environ.get("GW_ADMIN_TOKEN", "") or GW_KEY
 ACCOUNTS_FILE = os.environ.get(
     "ACCOUNTS_FILE", "/opt/doubao2api/accounts.json"
 )
@@ -50,8 +51,9 @@ def gw(method: str, path: str, body=None, timeout: int = 120):
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(GW_BASE + path, data=data, method=method)
     req.add_header("Content-Type", "application/json")
-    if GW_KEY:
-        req.add_header("Authorization", "Bearer " + GW_KEY)
+    tok = GW_ADMIN_TOKEN if path.startswith("/admin/") else GW_KEY
+    if tok:
+        req.add_header("Authorization", "Bearer " + tok)
     return urllib.request.urlopen(req, timeout=timeout)
 
 

@@ -4,6 +4,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/subtle"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -97,6 +98,12 @@ func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 		if token == "" {
 			token = strings.TrimSpace(r.Header.Get("x-api-key"))
+		}
+		// 管理接口专用令牌（面板用），与业务密钥解耦，删业务密钥不影响面板
+		if len(r.URL.Path) >= 7 && r.URL.Path[:7] == "/admin/" && s.cfg.AdminToken != "" &&
+			subtle.ConstantTimeCompare([]byte(token), []byte(s.cfg.AdminToken)) == 1 {
+			next(w, r)
+			return
 		}
 		if k, ok := lookupKey(token); ok {
 			next(w, r.WithContext(context.WithValue(r.Context(), ctxKeyID, k.ID)))

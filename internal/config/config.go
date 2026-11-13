@@ -37,6 +37,7 @@ type Config struct {
 	Listen   string   `json:"listen"`
 	APIKeys  []string `json:"api_keys"`
 	LogLevel string   `json:"log_level"`
+	AdminToken string `json:"admin_token"` // 管理接口专用令牌（与业务密钥解耦）
 
 	Upstream struct {
 		ChatURL          string            `json:"chat_url"`
@@ -98,6 +99,9 @@ func Load(path string) (*Config, error) {
 func (c *Config) applyDefaults() error {
 	if c.Listen == "" {
 		c.Listen = "127.0.0.1:8850"
+	}
+	if c.AdminToken == "" {
+		c.AdminToken = os.Getenv("DOUBAO2API_ADMIN_TOKEN")
 	}
 	if c.LogLevel == "" {
 		c.LogLevel = "info"
