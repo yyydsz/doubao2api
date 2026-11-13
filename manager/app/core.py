@@ -37,7 +37,7 @@ def db() -> sqlite3.Connection:
     conn.execute(
         """CREATE TABLE IF NOT EXISTS req_logs(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts TEXT DEFAULT CURRENT_TIMESTAMP,
+            ts TEXT DEFAULT (datetime('now','localtime')),
             model TEXT, status INTEGER, latency_ms INTEGER,
             chars INTEGER, conv TEXT, account TEXT, error TEXT
         )"""
@@ -100,8 +100,8 @@ def sync_accounts() -> dict:
 def log_request(**kw) -> None:
     conn = db()
     conn.execute(
-        "INSERT INTO req_logs(model,status,latency_ms,chars,conv,account,error)"
-        " VALUES(?,?,?,?,?,?,?)",
+        "INSERT INTO req_logs(ts,model,status,latency_ms,chars,conv,account,error)"
+        " VALUES(datetime('now','localtime'),?,?,?,?,?,?,?)",
         (
             kw.get("model", ""),
             kw.get("status", 0),
