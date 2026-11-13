@@ -20,7 +20,7 @@ PANEL_AUTH = os.environ.get("PANEL_AUTH", "")  # "user:pass"，空=不鉴权
 
 @app.middleware("http")
 async def basic_auth(request, call_next):
-    if PANEL_AUTH:
+    if PANEL_AUTH and not request.url.path.startswith("/v1/"):
         h = request.headers.get("authorization", "")
         ok = False
         if h.startswith("Basic "):
@@ -267,3 +267,22 @@ def index():
 @app.get("/healthz")
 def healthz():
     return JSONResponse({"ok": True})
+
+
+@app.api_route("/v1/{path:path}", methods=["GET", "POST", "OPTIONS"])
+def v1_on_panel(path: str):
+    """常见误用：把面板端口当网关端口。给出明确指引而不是 401/404。"""
+    gw = core.GW_BASE.replace("127.0.0.1", "").rstrip("/")
+    return JSONResponse(
+        {
+            "error": {
+                "message": "这里是管理面板端口（8860），模型接口在网关端口 8850",
+                "type": "wrong_port",
+                "code": "use_gateway_port",
+                "panel_port": 8860,
+                "gateway_base": "http://<host>:8850/v1",
+                "hint": "把 OPENAI_BASE_URL 改成 http://<host>:8850/v1，密钥用面板「密钥」页生成的那把",
+            }
+        },
+        status_code=404,
+    )
