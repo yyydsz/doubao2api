@@ -91,11 +91,15 @@ func (s *Server) qrStart(w http.ResponseWriter, r *http.Request) {
 	if token == "" {
 		token = payload.Data.Qrcode
 	}
+	image := payload.Data.Base64Image
+	if image == "" {
+		image = payload.Data.Qrcode // 实测：qrcode 字段本身就是 data:image/png;base64,...
+	}
 	sess := &qrSession{
 		ID:        randomHex(8),
 		Token:     token,
 		Status:    "waiting",
-		Image:     payload.Data.Base64Image,
+		Image:     image,
 		QRURL:     payload.Data.QrcodeIndexURL,
 		CreatedAt: time.Now(),
 	}
@@ -153,31 +157,23 @@ func (s *Server) qrPoll(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Message string `json:"message"`
 		Data    struct {
-			Status      int    `json:"status"`
+			Status      string `json:"status"`      // 实测为字符串：new / scanning / confirmed / expired
 			Description string `json:"description"`
 			RedirectURL string `json:"redirect_url"`
+			ErrorCode   int    `json:"error_code"`
 		} `json:"data"`
 	}
 	_ = json.Unmarshal(raw, &payload)
 
-	status := sess.Status
-	switch payload.Data.Status {
-	case 0:
-		status = "waiting"
-	case 1:
-		status = "waiting"
-	case 2:
-		status = "scanned"
-	case 3:
-		status = "confirmed"
-	case 4:
-		status = "expired"
-	case 5:
-		status = "canceled"
-	default:
+	status := mapQRStatus(payload.Data.Status)
+	if status == "" {
+		status = sess.Status
 		if payload.Data.Description != "" {
 			sess.Message = payload.Data.Description
 		}
+	}
+	if payload.Data.RedirectURL != "" {
+		sess.Message = payload.Data.RedirectURL
 	}
 
 	if status == "confirmed" {
@@ -218,4 +214,21 @@ func randomHex(n int) string {
 	b := make([]byte, n)
 	_, _ = rand.Read(b)
 	return hex.EncodeToString(b)
+}
+
+// mapQRStatus 把 passport 返回的状态（字符串/数字字符串）归一化成内部状态。
+func mapQRStatus(s string) string {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "new", "1", "0", "waiting":
+		return "waiting"
+	case "scanning", "scanned", "2", "5":
+		return "scanned"
+	case "confirmed", "success", "3", "6":
+		return "confirmed"
+	case "expired", "4", "7":
+		return "expired"
+	case "canceled", "cancelled", "8":
+		return "canceled"
+	}
+	return ""
 }

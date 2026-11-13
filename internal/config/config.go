@@ -123,12 +123,15 @@ func (c *Config) applyDefaults() error {
 	if c.QR.CheckURL == "" {
 		c.QR.CheckURL = "https://accounts.doubao.com/passport/web/check_qrconnect/"
 	}
+	if !c.QR.Enabled {
+		c.QR.Enabled = true // 默认开启：参数已内置，开箱可用
+	}
 	if c.QR.Query == nil {
+		// 实测可用组合：aid=497858 + language + next（带 real_aid 会被判「非法应用」）
 		c.QR.Query = map[string]string{
-			"aid": "582478", "real_aid": "582478", "language": "zh",
-			"device_platform": "web", "is_from_ttaccountsdk": "1",
-			"passport_jssdk_version": "4.4.6", "passport_jssdk_type": "normal",
-			"next": "https://www.doubao.com/",
+			"aid":      "497858",
+			"language": "zh",
+			"next":     "https://www.doubao.com/",
 		}
 	}
 	if c.WorkMode.BotID == "" {

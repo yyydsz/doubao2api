@@ -75,7 +75,18 @@ def list_accounts():
         "SELECT name,device_id,web_id,note,enabled,created_at FROM accounts ORDER BY created_at"
     ).fetchall()
     conn.close()
-    return {"accounts": [dict(r) for r in rows]}
+    items = [dict(r) for r in rows]
+    known = {i["name"] for i in items}
+    # 合并网关里由扫码等方式直接加入、但面板库还没有的账号
+    pool = core.gw_json("GET", "/admin/accounts")
+    for a in (pool.get("accounts") or []):
+        if a.get("name") and a["name"] not in known:
+            items.append({
+                "name": a["name"], "device_id": a.get("device_id", ""), "web_id": "",
+                "note": "扫码加入", "enabled": 0 if a.get("disabled") else 1,
+                "created_at": "", "source": "gateway",
+            })
+    return {"accounts": items}
 
 
 @app.post("/api/accounts")
