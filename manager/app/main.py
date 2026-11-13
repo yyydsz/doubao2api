@@ -6,7 +6,9 @@
   web/index.html ← 前端静态页（等价 web/out）
 """
 import base64
+import json
 import os
+import time
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -178,6 +180,33 @@ def delete_key(kid: str):
 @app.get("/api/usage")
 def usage(days: int = 7):
     return core.gw_json("GET", f"/admin/usage?days={days}")
+
+
+# ---------------- 模型管理 ----------------
+@app.get("/api/models/admin")
+def models_admin():
+    return core.gw_json("GET", "/admin/models")
+
+
+class ModelTestIn(BaseModel):
+    model: str = ""
+
+
+@app.post("/api/models/test")
+def models_test(t: ModelTestIn):
+    started = time.time()
+    payload = {"model": t.model, "metadata": {"conversation_id": "model-test-" + t.model},
+               "messages": [{"role": "user", "content": "只回一个字：好"}]}
+    try:
+        resp = core.gw("POST", "/v1/chat/completions", payload, timeout=120)
+        data = json.loads(resp.read().decode("utf-8", "ignore"))
+        text = ((data.get("choices") or [{}])[0].get("message") or {}).get("content", "")
+        # 上游偶发用正常 content 返回错误话术，这里识别成失败
+        bad = any(k in (text or "") for k in ("出了点问题", "稍后重试", "系统繁忙"))
+        return {"ok": not bad, "reply": text, "latency_ms": int((time.time() - started) * 1000),
+                "error": "上游返回错误话术" if bad else ""}
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)[:200], "latency_ms": int((time.time() - started) * 1000)}
 
 
 # ---------------- 每日签到 ----------------

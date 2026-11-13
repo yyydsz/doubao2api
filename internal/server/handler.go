@@ -80,6 +80,7 @@ func New(cfg *config.Config) *Server {
 	// 面板用的账号管理接口
 	s.mux.HandleFunc("GET /admin/accounts", s.withAuth(s.adminListAccounts))
 	s.mux.HandleFunc("GET /admin/quota", s.withAuth(s.adminQuota))
+	s.mux.HandleFunc("GET /admin/models", s.withAuth(s.adminModels))
 	s.mux.HandleFunc("GET /admin/status", s.withAuth(s.status))
 	s.mux.HandleFunc("POST /admin/checkin", s.withAuth(s.adminCheckin))
 	s.mux.HandleFunc("GET /admin/checkin", s.withAuth(s.adminCheckinStatus))
@@ -658,4 +659,52 @@ func (s *Server) modelParamFor(modelName, modelKey string) (config.ModelParam, b
 		return p, true
 	}
 	return config.ModelParam{}, false
+}
+
+// adminModels 模型清单（管理面板用）：含豆包 key、item_id、上下文、倍率。
+func (s *Server) adminModels(w http.ResponseWriter, r *http.Request) {
+	list := s.cfg.ModelList()
+	out := make([]map[string]any, 0, len(list))
+	for _, name := range list {
+		p := s.cfg.ModelParams[name]
+		win := s.cfg.WorkMode.TotalWindow
+		if p.TotalWindowSize != "" {
+			win = p.TotalWindowSize
+		}
+		enabled := true
+		if p.Enabled != nil {
+			enabled = *p.Enabled
+		}
+		item := map[string]any{
+			"id":               name,
+			"model_item_key":   s.cfg.ResolveModel(name),
+			"item_id":          p.ItemID,
+			"memory_profile":   p.MemoryProfile,
+			"context_length":   atoiSafe(win),
+			"ratio":            p.Ratio,
+			"display":          firstNonEmpty(p.Display, name),
+			"enabled":          enabled,
+			"is_default":       name == s.cfg.DefaultModel,
+		}
+		out = append(out, item)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"models": out, "total": len(out),
+		"default_model": s.cfg.DefaultModel})
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func atoiSafe(s string) int {
+	n, err := parseInt(s)
+	if err != nil {
+		return 0
+	}
+	return n
 }

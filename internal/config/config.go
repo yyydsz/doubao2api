@@ -37,6 +37,10 @@ type WorkMode struct {
 type ModelParam struct {
 	MemoryProfile   string `json:"memory_profile"`
 	TotalWindowSize string `json:"total_window_size"`
+	ItemID          string `json:"item_id"`  // 豆包 item_id（部分模型需要）
+	Ratio           string `json:"ratio"`    // 价格倍率，如 0.95x
+	Display         string `json:"display"`  // 中文显示名
+	Enabled         *bool  `json:"enabled"`  // 是否对外暴露（缺省 true）
 }
 
 // CheckinConfig 每日自动签到配置。

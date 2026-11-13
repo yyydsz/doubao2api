@@ -43,7 +43,7 @@
       "note": "豆包账号 1"
     }
   ],
-  "default_model": "doubao",
+  "default_model": "deepseek-v4-flash",
   "models": [
     "auto",
     "doubao-2.1-lite",
@@ -95,40 +95,72 @@
   },
   "model_params": {
     "auto": {
+      "display": "自动",
+      "item_id": "9",
+      "ratio": "免费",
+      "memory_profile": "256k",
       "total_window_size": "256000"
     },
     "doubao-2.1-lite": {
+      "display": "豆包 2.1 Lite",
+      "item_id": "10001",
+      "ratio": "限时 0.01x",
       "memory_profile": "256k",
       "total_window_size": "256000"
     },
     "doubao-2.1-pro": {
+      "display": "豆包 2.1 Pro",
+      "item_id": "5",
+      "ratio": "0.65x",
+      "memory_profile": "256k",
       "total_window_size": "256000"
     },
     "deepseek-v4-flash": {
+      "display": "DeepSeek V4.1 Flash",
+      "item_id": "10001",
+      "ratio": "限时 0.01x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "deepseek-v4-pro": {
+      "display": "DeepSeek V4 Pro",
+      "item_id": "10001",
+      "ratio": "0.46x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "kimi-k3": {
+      "display": "Kimi K3",
+      "item_id": "10001",
+      "ratio": "1.48x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "kimi-k3.1-pro": {
+      "display": "Kimi K3.1 Pro",
+      "item_id": "10001",
+      "ratio": "0.95x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "kimi-k3.1-pro-fast": {
+      "display": "Kimi K3.1 Pro 高速",
+      "item_id": "10001",
+      "ratio": "1.44x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "glm-5.3": {
+      "display": "GLM 5.3",
+      "item_id": "10001",
+      "ratio": "0.80x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     },
     "glm-5.3-flash": {
+      "display": "GLM 5.3 Flash",
+      "item_id": "10001",
+      "ratio": "0.08x",
       "memory_profile": "300k_230",
       "total_window_size": "300000"
     }

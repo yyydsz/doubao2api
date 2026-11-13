@@ -90,6 +90,7 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
       <a data-v="accounts"><i>◉</i>账号</a>
       <a data-v="pool"><i>◎</i>号池</a>
       <a data-v="keys"><i>⚿</i>密钥</a>
+      <a data-v="models"><i>▦</i>模型</a>
       <a data-v="logs"><i>≡</i>请求日志</a>
       <a data-v="test"><i>▶</i>测试台</a>
       <a data-v="settings"><i>⚙</i>设置</a>
@@ -181,6 +182,25 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
       </div>
     </section>
 
+    <!-- 模型 -->
+    <section id="v-models" style="display:none">
+      <div class="panel">
+        <div class="panel-h">模型清单 <span class="tag">名称 / 豆包 key / 上下文 / 价格倍率</span>
+          <button class="ghost" onclick="loadModelsAdmin()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-models"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">说明</div>
+        <div class="panel-b mono" style="line-height:1.9">
+          · <b>模型名</b>：客户端调用时填的 model 字段<br>
+          · <b>豆包 key</b>：实际发给豆包的 model_item_key<br>
+          · <b>上下文</b>：该模型可用的总窗口（token）<br>
+          · <b>倍率</b>：豆包显示的价格倍率，越高越贵<br>
+          · <b>默认</b>：客户端不指定模型时使用
+        </div>
+      </div>
+    </section>
+
     <!-- 日志 -->
     <section id="v-logs" style="display:none">
       <div class="panel">
@@ -234,7 +254,7 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
 
 <script>
 const $=s=>document.querySelector(s);
-const TITLES={overview:'概览',accounts:'账号',pool:'号池',keys:'密钥',logs:'请求日志',test:'测试台',settings:'设置'};
+const TITLES={overview:'概览',accounts:'账号',pool:'号池',keys:'密钥',models:'模型',logs:'请求日志',test:'测试台',settings:'设置'};
 let qrTimer=null,qrId=null;
 
 function toast(msg,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=msg;
@@ -245,10 +265,10 @@ async function api(path,opt){try{const r=await fetch(path,opt);return await r.js
 document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
   document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
   const v=a.dataset.v;
-  ['overview','accounts','pool','keys','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
+  ['overview','accounts','pool','keys','models','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
   $('#title').textContent=TITLES[v];
   if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
-  if(v==='pool'){loadPool();loadCheckin();} if(v==='keys')loadKeys(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
+  if(v==='pool'){loadPool();loadCheckin();} if(v==='keys')loadKeys(); if(v==='models')loadModelsAdmin(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
 });
 
 async function loadOverview(){
@@ -349,6 +369,31 @@ async function createKey(){
 async function delKey(id,name){ if(!confirm('删除密钥 '+name+' ？使用它的客户端会立即失效')) return;
   await api('/api/keys/'+encodeURIComponent(id),{method:'DELETE'}); toast('已删除'); loadKeys(); }
 function copyKey(k){ if(!k) return; navigator.clipboard.writeText(k).then(()=>toast('已复制')); }
+
+async function loadModelsAdmin(){
+  const d=await api('/api/models/admin');
+  const rows=(d.models||[]).map(m=>`<tr>
+    <td>${m.id}${m.is_default?' <span class="pill ok">默认</span>':''}</td>
+    <td>${m.display||''}</td>
+    <td class="mono">${m.model_item_key}</td>
+    <td class="mono">${m.item_id||'-'}</td>
+    <td>${m.context_length?m.context_length.toLocaleString():'-'}</td>
+    <td class="mono">${m.memory_profile||'-'}</td>
+    <td>${m.ratio||'-'}</td>
+    <td><button class="ghost" onclick="testModel('${m.id}',this)">测试</button></td>
+  </tr>`).join('');
+  $('#t-models').innerHTML=`<thead><tr><th>模型名</th><th>显示名</th><th>豆包 key</th><th>item_id</th>
+    <th>上下文</th><th>memory_profile</th><th>倍率</th><th>操作</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=8 class="empty">没有配置模型</td></tr>'}</tbody>`;
+}
+async function testModel(name,btn){
+  btn.disabled=true; const old=btn.textContent; btn.textContent='测试中…';
+  const r=await api('/api/models/test',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:name})});
+  btn.disabled=false; btn.textContent=old;
+  if(r.ok) toast(`${name}：${r.latency_ms}ms · 回复 ${JSON.stringify((r.reply||'').slice(0,20))}`);
+  else toast(`${name} 失败：${r.error||'未知'}`,true);
+}
 
 async function loadLogs(){
   const d=await api('/api/logs?limit=50');
