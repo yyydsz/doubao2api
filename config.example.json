@@ -92,5 +92,45 @@
     "enabled": true,
     "hour": 9,
     "scene": "pc_incentive_task_mvp_v3"
+  },
+  "model_params": {
+    "auto": {
+      "total_window_size": "256000"
+    },
+    "doubao-2.1-lite": {
+      "memory_profile": "256k",
+      "total_window_size": "256000"
+    },
+    "doubao-2.1-pro": {
+      "total_window_size": "256000"
+    },
+    "deepseek-v4-flash": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "deepseek-v4-pro": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "kimi-k3": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "kimi-k3.1-pro": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "kimi-k3.1-pro-fast": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "glm-5.3": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    },
+    "glm-5.3-flash": {
+      "memory_profile": "300k_230",
+      "total_window_size": "300000"
+    }
   }
 }

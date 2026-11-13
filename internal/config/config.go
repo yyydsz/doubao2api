@@ -33,6 +33,12 @@ type WorkMode struct {
 }
 
 // Config 网关配置。
+// ModelParam 单个模型的上下文参数（不同模型窗口不同）。
+type ModelParam struct {
+	MemoryProfile   string `json:"memory_profile"`
+	TotalWindowSize string `json:"total_window_size"`
+}
+
 // CheckinConfig 每日自动签到配置。
 type CheckinConfig struct {
 	Enabled bool   `json:"enabled"`
@@ -46,6 +52,7 @@ type Config struct {
 	LogLevel string   `json:"log_level"`
 	AdminToken string `json:"admin_token"` // 管理接口专用令牌（与业务密钥解耦）
 	Checkin CheckinConfig `json:"checkin"`
+	ModelParams map[string]ModelParam `json:"model_params"`
 
 	Upstream struct {
 		ChatURL          string            `json:"chat_url"`

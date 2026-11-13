@@ -236,3 +236,16 @@ MIT
 兼容别名：`doubao`、`deepseek` 均指向 `person-deepseek-v4-1-flash-261017`。
 
 > 清单来源：客户端 `_DesktopActionBarBriefListRequestCacheDataV1` 缓存（`modeSelectData.menuConfV2.mode_list`），非接口下发。豆包若调整模型，同步更新 `model_aliases` 即可。
+
+### 上下文窗口（实测自客户端缓存）
+
+`/v1/models` 现在会返回 `context_length`，网关也按模型发送对应的 `memory_profile` / `total_window_size`：
+
+| 模型 | 上下文 | memory_profile |
+|---|---|---|
+| `auto` / `doubao-2.1-lite` / `doubao-2.1-pro` | **256,000** | `256k`（Pro/Auto 未声明 profile） |
+| `deepseek-v4-flash` / `deepseek-v4-pro` | **300,000** | `300k_230` |
+| `kimi-k3` / `kimi-k3.1-pro` / `kimi-k3.1-pro-fast` | **300,000** | `300k_230` |
+| `glm-5.3` / `glm-5.3-flash` | **300,000** | `300k_230` |
+
+结论：**300k 就是当前档位能拿到的上限**，不存在更大的窗口可开（豆包 2.1 系列反而是 256k）。

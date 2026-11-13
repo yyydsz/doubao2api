@@ -163,7 +163,17 @@ func (s *Server) models(w http.ResponseWriter, r *http.Request) {
 	list := s.cfg.ModelList()
 	data := make([]map[string]any, 0, len(list))
 	for _, m := range list {
-		data = append(data, map[string]any{"id": m, "object": "model", "created": s.upAt.Unix(), "owned_by": "doubao"})
+		item := map[string]any{"id": m, "object": "model", "created": s.upAt.Unix(), "owned_by": "doubao"}
+		// 带上上下文窗口：优先 model_params，其次全局 work_mode
+		win := s.cfg.WorkMode.TotalWindow
+		if mp, ok := s.cfg.ModelParams[m]; ok && mp.TotalWindowSize != "" {
+			win = mp.TotalWindowSize
+		}
+		if n, err := parseInt(win); err == nil && n > 0 {
+			item["context_length"] = n
+			item["max_tokens"] = n
+		}
+		data = append(data, item)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"object": "list", "data": data})
 }
@@ -184,14 +194,24 @@ func (s *Server) chatCompletions(w http.ResponseWriter, r *http.Request) {
 
 	modelKey := s.cfg.ResolveModel(req.Model)
 	effortOverride := strings.TrimSpace(req.ReasoningEffort)
+	// 不同模型上下文窗口不同：优先用 model_params，其次全局 work_mode
+	memProfile, winSize := s.cfg.WorkMode.MemoryProfile, s.cfg.WorkMode.TotalWindow
+	if mp, ok := s.modelParamFor(req.Model, modelKey); ok {
+		if mp.MemoryProfile != "" {
+			memProfile = mp.MemoryProfile
+		}
+		if mp.TotalWindowSize != "" {
+			winSize = mp.TotalWindowSize
+		}
+	}
 	convKey := conversationKey(&req, raw)
 	st := s.getConv(convKey)
 
 	body, err := doubao.BuildBody(&req, modelKey, doubao.BuildOptions{
 		BotID: s.cfg.WorkMode.BotID, ModeID: s.cfg.WorkMode.ModeID,
 		ReasoningEffort: effortOr(effortOverride, s.cfg.WorkMode.ReasoningEffort),
-		MemoryProfile:   s.cfg.WorkMode.MemoryProfile,
-		TotalWindow:     s.cfg.WorkMode.TotalWindow,
+		MemoryProfile:   memProfile,
+		TotalWindow:     winSize,
 		EnableSandbox:   s.cfg.WorkMode.EnableSandbox,
 		Workspace:       s.cfg.WorkMode.Workspace,
 		DeviceName:      hostname(),
@@ -624,4 +644,18 @@ func effortOr(v, def string) string {
 		return v
 	}
 	return def
+}
+
+// modelParamFor 查某模型的上下文参数（先按请求名，再按 model_item_key）。
+func (s *Server) modelParamFor(modelName, modelKey string) (config.ModelParam, bool) {
+	if s.cfg.ModelParams == nil {
+		return config.ModelParam{}, false
+	}
+	if p, ok := s.cfg.ModelParams[modelName]; ok {
+		return p, true
+	}
+	if p, ok := s.cfg.ModelParams[modelKey]; ok {
+		return p, true
+	}
+	return config.ModelParam{}, false
 }
