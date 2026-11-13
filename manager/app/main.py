@@ -53,7 +53,7 @@ class TestIn(BaseModel):
 # ---------------- 概览 ----------------
 @app.get("/api/overview")
 def overview():
-    st = core.gw_json("GET", "/status")
+    st = core.gw_json("GET", "/admin/status")
     conn = core.db()
     n_acc = conn.execute("SELECT COUNT(*) c FROM accounts WHERE enabled=1").fetchone()["c"]
     today = conn.execute(
@@ -64,6 +64,10 @@ def overview():
     ).fetchone()["c"]
     conn.close()
     quota = core.gw_json("GET", "/admin/quota")
+    gw_usage = core.gw_json("GET", "/admin/usage?days=7")
+    u_today_req = sum(u.get("today_requests", 0) for u in (gw_usage.get("usage") or []))
+    u_today_tok = sum(u.get("today_tokens", 0) for u in (gw_usage.get("usage") or []))
+    u_tok = sum(u.get("tokens", 0) for u in (gw_usage.get("usage") or []))
     # 账号数以网关号池为准（含抓包/扫码导入、不在面板库里的号）
     gw_total = 0 if "error" in st else st.get("total", 0)
     return {
@@ -71,7 +75,9 @@ def overview():
         "accounts_enabled": max(n_acc, gw_total),
         "quota": quota,
         "today_chars": tokens_today,
-        "today_tokens_est": int((tokens_today or 0) / 1.7),
+        "today_tokens_est": u_today_tok,
+        "usage_today_requests": u_today_req,
+        "usage_tokens_7d": u_tok,
         "requests_today": today["c"],
         "avg_latency_ms": int(today["a"] or 0),
     }

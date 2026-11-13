@@ -79,6 +79,7 @@ func New(cfg *config.Config) *Server {
 	// 面板用的账号管理接口
 	s.mux.HandleFunc("GET /admin/accounts", s.withAuth(s.adminListAccounts))
 	s.mux.HandleFunc("GET /admin/quota", s.withAuth(s.adminQuota))
+	s.mux.HandleFunc("GET /admin/status", s.withAuth(s.status))
 	s.mux.HandleFunc("GET /admin/keys", s.withAuth(s.adminListKeys))
 	s.mux.HandleFunc("POST /admin/keys", s.withAuth(s.adminCreateKey))
 	s.mux.HandleFunc("DELETE /admin/keys", s.withAuth(s.adminDeleteKey))
@@ -296,7 +297,7 @@ func (s *Server) forward(w http.ResponseWriter, r *http.Request, req *doubao.Cha
 	}
 
 	if req.Stream {
-		return s.streamOut(w, r, resp.Body, convKey, acct.Name, started)
+		return s.streamOut(w, r, resp.Body, convKey, acct.Name, req.Model, started)
 	}
 	return s.wholeOut(w, r, resp.Body, convKey, req, acct.Name, started)
 }
@@ -325,7 +326,7 @@ func (s *sink) OnConversation(c, sec string) { s.ch <- ev{kind: evConv, conv: c,
 func (s *sink) OnFinish(endType int, brief string) { s.ch <- ev{kind: evFinish, endType: endType, brief: brief} }
 
 // streamOut 流式输出。
-func (s *Server) streamOut(w http.ResponseWriter, r *http.Request, body io.Reader, convKey, acct string, started time.Time) (int, bool) {
+func (s *Server) streamOut(w http.ResponseWriter, r *http.Request, body io.Reader, convKey, acct, model string, started time.Time) (int, bool) {
 	hdr := w.Header()
 	hdr.Set("Content-Type", "text/event-stream")
 	hdr.Set("Cache-Control", "no-cache")
@@ -374,7 +375,7 @@ func (s *Server) streamOut(w http.ResponseWriter, r *http.Request, body io.Reade
 					fl.Flush()
 				}
 				logf("ok acct=%s stream=true latency=%s chars=%d", acct, time.Since(started).Round(time.Millisecond), sk.final.Len())
-				s.recordUsage(apiKeyFrom(r.Context()), "", sk.final.Len(), http.StatusOK, int(time.Since(started)/time.Millisecond))
+				s.recordUsage(apiKeyFrom(r.Context()), model, sk.final.Len(), http.StatusOK, int(time.Since(started)/time.Millisecond))
 				return http.StatusOK, false
 			}
 			switch e.kind {
