@@ -3,8 +3,8 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -68,10 +68,7 @@ func New(cfg *config.Config) *Server {
 		s.accs[a.Name] = a
 		s.pool.Add(pool.Key{Name: a.Name, Key: a.Name})
 	}
-	for _, k := range cfg.APIKeys {
-		sum := sha256.Sum256([]byte(k))
-		s.acl = append(s.acl, sum[:])
-	}
+	s.loadKeys()
 	s.mux.HandleFunc("POST /v1/chat/completions", s.withAuth(s.chatCompletions))
 	s.mux.HandleFunc("GET /v1/models", s.withAuth(s.models))
 	s.loadAccountsFile() // 启动时加载 accounts.json（面板写入的账号）
@@ -80,6 +77,10 @@ func New(cfg *config.Config) *Server {
 	// 面板用的账号管理接口
 	s.mux.HandleFunc("GET /admin/accounts", s.withAuth(s.adminListAccounts))
 	s.mux.HandleFunc("GET /admin/quota", s.withAuth(s.adminQuota))
+	s.mux.HandleFunc("GET /admin/keys", s.withAuth(s.adminListKeys))
+	s.mux.HandleFunc("POST /admin/keys", s.withAuth(s.adminCreateKey))
+	s.mux.HandleFunc("DELETE /admin/keys", s.withAuth(s.adminDeleteKey))
+	s.mux.HandleFunc("GET /admin/usage", s.withAuth(s.adminUsage))
 	s.mux.HandleFunc("POST /admin/reload", s.withAuth(s.adminReload))
 	s.mux.HandleFunc("POST /admin/cookie", s.withAuth(s.adminSetCookie))
 	s.mux.HandleFunc("DELETE /admin/accounts", s.withAuth(s.adminDelete))
@@ -93,17 +94,20 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.Serve
 
 func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if len(s.acl) == 0 {
-			next(w, r)
+		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+		if token == "" {
+			token = strings.TrimSpace(r.Header.Get("x-api-key"))
+		}
+		if k, ok := lookupKey(token); ok {
+			next(w, r.WithContext(context.WithValue(r.Context(), ctxKeyID, k.ID)))
 			return
 		}
-		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		sum := sha256.Sum256([]byte(token))
-		for _, want := range s.acl {
-			if subtle.ConstantTimeCompare(sum[:], want) == 1 {
-				next(w, r)
-				return
-			}
+		keyMu.RLock()
+		empty := len(keysDB) == 0
+		keyMu.RUnlock()
+		if empty { // 未配置任何密钥：内网放行
+			next(w, r)
+			return
 		}
 		writeErr(w, http.StatusUnauthorized, "invalid api key", "invalid_api_key", "invalid_request_error")
 	}
@@ -265,7 +269,7 @@ func (s *Server) forward(w http.ResponseWriter, r *http.Request, req *doubao.Cha
 	if req.Stream {
 		return s.streamOut(w, r, resp.Body, convKey, acct.Name, started)
 	}
-	return s.wholeOut(w, resp.Body, convKey, req, acct.Name, started)
+	return s.wholeOut(w, r, resp.Body, convKey, req, acct.Name, started)
 }
 
 // sink 把 SSE 事件转发到 channel。
@@ -341,6 +345,7 @@ func (s *Server) streamOut(w http.ResponseWriter, r *http.Request, body io.Reade
 					fl.Flush()
 				}
 				logf("ok acct=%s stream=true latency=%s chars=%d", acct, time.Since(started).Round(time.Millisecond), sk.final.Len())
+				s.recordUsage(apiKeyFrom(r.Context()), "", sk.final.Len(), http.StatusOK, int(time.Since(started)/time.Millisecond))
 				return http.StatusOK, false
 			}
 			switch e.kind {
@@ -365,7 +370,7 @@ func (s *Server) streamOut(w http.ResponseWriter, r *http.Request, body io.Reade
 }
 
 // wholeOut 非流式输出。
-func (s *Server) wholeOut(w http.ResponseWriter, body io.Reader, convKey string, req *doubao.ChatRequest, acct string, started time.Time) (int, bool) {
+func (s *Server) wholeOut(w http.ResponseWriter, r *http.Request, body io.Reader, convKey string, req *doubao.ChatRequest, acct string, started time.Time) (int, bool) {
 	sk := &sink{ch: make(chan ev, 256)}
 	done := make(chan struct{})
 	go func() {
@@ -401,6 +406,7 @@ func (s *Server) wholeOut(w http.ResponseWriter, body io.Reader, convKey string,
 	}
 	writeJSON(w, http.StatusOK, resp)
 	logf("ok acct=%s stream=false latency=%s chars=%d", acct, time.Since(started).Round(time.Millisecond), len(text))
+	s.recordUsage(apiKeyFrom(r.Context()), req.Model, len(text), http.StatusOK, int(time.Since(started)/time.Millisecond))
 	return http.StatusOK, false
 }
 

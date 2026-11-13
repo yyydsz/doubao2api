@@ -149,6 +149,31 @@ def models():
     return {"models": items, "items": items}
 
 
+# ---------------- 密钥管理 ----------------
+class KeyIn(BaseModel):
+    name: str = ""
+
+
+@app.get("/api/keys")
+def list_keys():
+    return core.gw_json("GET", "/admin/keys")
+
+
+@app.post("/api/keys")
+def create_key(k: KeyIn):
+    return core.gw_json("POST", "/admin/keys", {"name": k.name})
+
+
+@app.delete("/api/keys/{kid}")
+def delete_key(kid: str):
+    return core.gw_json("DELETE", "/admin/keys?id=" + kid)
+
+
+@app.get("/api/usage")
+def usage(days: int = 7):
+    return core.gw_json("GET", f"/admin/usage?days={days}")
+
+
 # ---------------- 号池 / 日志 / 设置 ----------------
 @app.get("/api/pool")
 def pool():

@@ -89,6 +89,7 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
       <a data-v="overview" class="on"><i>◈</i>概览</a>
       <a data-v="accounts"><i>◉</i>账号</a>
       <a data-v="pool"><i>◎</i>号池</a>
+      <a data-v="keys"><i>⚿</i>密钥</a>
       <a data-v="logs"><i>≡</i>请求日志</a>
       <a data-v="test"><i>▶</i>测试台</a>
       <a data-v="settings"><i>⚙</i>设置</a>
@@ -148,6 +149,29 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
       </div>
     </section>
 
+    <!-- 密钥 -->
+    <section id="v-keys" style="display:none">
+      <div class="panel">
+        <div class="panel-h">新增密钥 <span class="tag">创建后仅显示一次完整 key</span></div>
+        <div class="panel-b">
+          <div class="row">
+            <input id="k-name" class="grow" placeholder="密钥名称（如 dsh-prod）">
+            <button onclick="createKey()">生成密钥</button>
+          </div>
+          <pre id="k-new" style="display:none;margin-top:12px"></pre>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">密钥列表 <button class="ghost" onclick="loadKeys()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-keys"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">分密钥用量 <span class="tag" id="u-days">近 7 天</span>
+          <button class="ghost" onclick="loadUsage()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-usage"></table></div>
+      </div>
+    </section>
+
     <!-- 日志 -->
     <section id="v-logs" style="display:none">
       <div class="panel">
@@ -201,7 +225,7 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
 
 <script>
 const $=s=>document.querySelector(s);
-const TITLES={overview:'概览',accounts:'账号',pool:'号池',logs:'请求日志',test:'测试台',settings:'设置'};
+const TITLES={overview:'概览',accounts:'账号',pool:'号池',keys:'密钥',logs:'请求日志',test:'测试台',settings:'设置'};
 let qrTimer=null,qrId=null;
 
 function toast(msg,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=msg;
@@ -212,10 +236,10 @@ async function api(path,opt){try{const r=await fetch(path,opt);return await r.js
 document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
   document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
   const v=a.dataset.v;
-  ['overview','accounts','pool','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
+  ['overview','accounts','pool','keys','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
   $('#title').textContent=TITLES[v];
   if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
-  if(v==='pool')loadPool(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
+  if(v==='pool')loadPool(); if(v==='keys')loadKeys(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
 });
 
 async function loadOverview(){
@@ -266,6 +290,34 @@ async function loadPool(){
   $('#t-pool').innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>失败</th><th>device</th><th>原因</th></tr></thead>
     <tbody>${rows||'<tr><td colspan=5 class="empty">号池为空</td></tr>'}</tbody>`;
 }
+
+async function loadKeys(){
+  const d=await api('/api/keys');
+  const rows=(d.keys||[]).map(k=>`<tr>
+    <td>${k.name}</td><td class="mono">${k.key_masked||k.key}</td>
+    <td>${new Date((k.created||0)*1000).toLocaleString()}</td>
+    <td><button class="ghost" onclick="copyKey('${k.key||''}')">复制</button>
+        <button class="danger" onclick="delKey('${k.id}','${k.name}')">删除</button></td></tr>`).join('');
+  $('#t-keys').innerHTML=`<thead><tr><th>名称</th><th>密钥</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=4 class="empty">还没有密钥</td></tr>'}</tbody>`;
+  loadUsage();
+}
+async function loadUsage(){
+  const d=await api('/api/usage?days=7');
+  const rows=(d.usage||[]).map(u=>`<tr><td>${u.name||u.key_id}</td>
+    <td>${u.requests}</td><td>${u.tokens}</td><td>${u.today_requests}</td><td>${u.today_tokens}</td></tr>`).join('');
+  $('#t-usage').innerHTML=`<thead><tr><th>密钥</th><th>请求数</th><th>token</th><th>今日请求</th><th>今日 token</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=5 class="empty">暂无用量（发一次请求后出现）</td></tr>'}</tbody>`;
+}
+async function createKey(){
+  const name=$('#k-name').value.trim();
+  const r=await api('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  if(r.key){ $('#k-new').style.display=''; $('#k-new').textContent='新密钥（只显示这一次）：\n'+r.key.key; $('#k-name').value=''; toast('密钥已创建'); loadKeys(); }
+  else toast('创建失败: '+JSON.stringify(r),true);
+}
+async function delKey(id,name){ if(!confirm('删除密钥 '+name+' ？使用它的客户端会立即失效')) return;
+  await api('/api/keys/'+encodeURIComponent(id),{method:'DELETE'}); toast('已删除'); loadKeys(); }
+function copyKey(k){ if(!k) return; navigator.clipboard.writeText(k).then(()=>toast('已复制')); }
 
 async function loadLogs(){
   const d=await api('/api/logs?limit=50');
