@@ -33,11 +33,19 @@ type WorkMode struct {
 }
 
 // Config 网关配置。
+// CheckinConfig 每日自动签到配置。
+type CheckinConfig struct {
+	Enabled bool   `json:"enabled"`
+	Hour    int    `json:"hour"`
+	Scene   string `json:"scene"`
+}
+
 type Config struct {
 	Listen   string   `json:"listen"`
 	APIKeys  []string `json:"api_keys"`
 	LogLevel string   `json:"log_level"`
 	AdminToken string `json:"admin_token"` // 管理接口专用令牌（与业务密钥解耦）
+	Checkin CheckinConfig `json:"checkin"`
 
 	Upstream struct {
 		ChatURL          string            `json:"chat_url"`

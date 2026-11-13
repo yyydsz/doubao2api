@@ -74,12 +74,15 @@ func New(cfg *config.Config) *Server {
 	s.mux.HandleFunc("POST /v1/chat/completions", s.withAuth(s.chatCompletions))
 	s.mux.HandleFunc("GET /v1/models", s.withAuth(s.models))
 	s.loadAccountsFile() // 启动时加载 accounts.json（面板写入的账号）
+	go s.checkinLoop()   // 每日自动签到
 	s.mux.HandleFunc("GET /healthz", s.healthz)
 	s.mux.HandleFunc("GET /status", s.withAuth(s.status))
 	// 面板用的账号管理接口
 	s.mux.HandleFunc("GET /admin/accounts", s.withAuth(s.adminListAccounts))
 	s.mux.HandleFunc("GET /admin/quota", s.withAuth(s.adminQuota))
 	s.mux.HandleFunc("GET /admin/status", s.withAuth(s.status))
+	s.mux.HandleFunc("POST /admin/checkin", s.withAuth(s.adminCheckin))
+	s.mux.HandleFunc("GET /admin/checkin", s.withAuth(s.adminCheckinStatus))
 	s.mux.HandleFunc("GET /admin/keys", s.withAuth(s.adminListKeys))
 	s.mux.HandleFunc("POST /admin/keys", s.withAuth(s.adminCreateKey))
 	s.mux.HandleFunc("DELETE /admin/keys", s.withAuth(s.adminDeleteKey))

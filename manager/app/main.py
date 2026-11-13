@@ -180,6 +180,17 @@ def usage(days: int = 7):
     return core.gw_json("GET", f"/admin/usage?days={days}")
 
 
+# ---------------- 每日签到 ----------------
+@app.post("/api/checkin")
+def run_checkin(name: str = ""):
+    return core.gw_json("POST", "/admin/checkin" + (f"?name={name}" if name else ""))
+
+
+@app.get("/api/checkin")
+def checkin_status():
+    return core.gw_json("GET", "/admin/checkin")
+
+
 # ---------------- 号池 / 日志 / 设置 ----------------
 @app.get("/api/pool")
 def pool():

@@ -144,8 +144,17 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
     <!-- 号池 -->
     <section id="v-pool" style="display:none">
       <div class="panel">
-        <div class="panel-h">网关号池（实时） <button class="ghost" onclick="loadPool()">刷新</button></div>
+        <div class="panel-h">网关号池（实时）
+          <span>
+            <span class="mono" id="ck-info" style="margin-right:10px"></span>
+            <button class="ghost" onclick="loadPool()">刷新</button>
+            <button id="btn-checkin" onclick="runCheckin()">立即签到</button>
+          </span></div>
         <div class="panel-b" style="padding:0"><table id="t-pool"></table></div>
+      </div>
+      <div class="panel">
+        <div class="panel-h">每日签到记录 <button class="ghost" onclick="loadCheckin()">刷新</button></div>
+        <div class="panel-b" style="padding:0"><table id="t-checkin"></table></div>
       </div>
     </section>
 
@@ -239,7 +248,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
   ['overview','accounts','pool','keys','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
   $('#title').textContent=TITLES[v];
   if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
-  if(v==='pool')loadPool(); if(v==='keys')loadKeys(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
+  if(v==='pool'){loadPool();loadCheckin();} if(v==='keys')loadKeys(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
 });
 
 async function loadOverview(){
@@ -280,6 +289,28 @@ async function loadAccounts(){
 
 async function delAcc(n){if(!confirm('删除账号 '+n+' ？'))return;await api('/api/accounts/'+encodeURIComponent(n),{method:'DELETE'});toast('已删除');loadAccounts();}
 async function toggleAcc(n){await api(`/api/accounts/${encodeURIComponent(n)}/toggle`,{method:'POST'});loadAccounts();}
+
+async function loadCheckin(){
+  const d=await api('/api/checkin');
+  const m={ok:'已签到',already:'今日已签',no_campaign:'无活动',error:'失败'};
+  const rows=(d.results||[]).map(r=>`<tr><td>${r.name}</td>
+    <td>${m[r.status]||r.status}</td><td>${r.message||''}</td>
+    <td>${r.reward||'-'}</td><td class="mono">${r.ts?new Date(r.ts*1000).toLocaleString():'-'}</td></tr>`).join('');
+  const t=$('#t-checkin');
+  if(t) t.innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>说明</th><th>奖励</th><th>时间</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=5 class="empty">还没有签到记录</td></tr>'}</tbody>`;
+  $('#ck-info').textContent=d.enabled
+    ? `自动签到：每天 ${d.hour}:00`
+    : '自动签到：已关闭';
+}
+async function runCheckin(){
+  const btn=$('#btn-checkin'); btn.disabled=true; btn.textContent='签到中…';
+  const r=await api('/api/checkin',{method:'POST'});
+  btn.disabled=false; btn.textContent='立即签到';
+  const n=(r.results||[]).filter(x=>x.status==='ok').length;
+  toast(`签到完成：成功 ${n} 个 / 共 ${(r.results||[]).length} 个`);
+  loadCheckin();
+}
 
 async function loadPool(){
   const d=await api('/api/pool');
