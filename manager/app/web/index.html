@@ -121,23 +121,17 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
     <!-- 账号 -->
     <section id="v-accounts" style="display:none">
       <div class="panel">
-        <div class="panel-h">新增 / 更新账号 <span class="tag">保存后自动热加载到网关</span></div>
+        <div class="panel-h">扫码添加账号 <span class="tag">用豆包 App 扫码，登录后自动入池</span>
+          <button onclick="qrStart()">扫码加号</button></div>
         <div class="panel-b">
-          <div class="row" style="margin-bottom:10px">
-            <input id="a-name" class="grow" placeholder="账号名（唯一，如 acc-1）">
-            <input id="a-dev" class="grow" placeholder="device_id（可选）">
-            <input id="a-web" class="grow" placeholder="web_id（可选）">
+          <div id="qrbox" style="display:none;margin-top:4px" class="row">
+            <img id="qrimg" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:10px" alt="二维码">
+            <div>
+              <div id="qrtext" class="mono">等待扫码…</div>
+              <button class="ghost" style="margin-top:8px" onclick="qrStop()">取消</button>
+            </div>
           </div>
-          <textarea id="a-cookie" placeholder="Cookie：sessionid=...; sid_tt=...; ttwid=...; s_v_web_id=...; odin_tt=...; passport_csrf_token=..."></textarea>
-          <div class="row" style="margin-top:10px">
-            <input id="a-note" class="grow" placeholder="备注">
-            <button onclick="saveAccount()">保存账号</button>
-            <button class="ghost" onclick="qrStart()">扫码加号</button>
-          </div>
-          <div id="qrbox" style="display:none;margin-top:14px" class="row">
-            <img id="qrimg" style="width:190px;height:190px;background:#fff;padding:8px;border-radius:10px" alt="二维码">
-            <div><div id="qrtext" class="mono">等待扫码…</div><button class="ghost" style="margin-top:8px" onclick="qrStop()">取消</button></div>
-          </div>
+          <div id="qr-hint" class="mono">点击右上角「扫码加号」生成二维码，用豆包 App 扫描并确认。</div>
         </div>
       </div>
       <div class="panel">
@@ -260,14 +254,6 @@ async function loadAccounts(){
     <tbody>${rows||'<tr><td colspan=5 class="empty">还没有账号，先在上面添加</td></tr>'}</tbody>`;
 }
 
-async function saveAccount(){
-  const body={name:$('#a-name').value.trim(),cookie:$('#a-cookie').value.trim(),
-    device_id:$('#a-dev').value.trim(),web_id:$('#a-web').value.trim(),note:$('#a-note').value.trim()};
-  if(!body.name||!body.cookie)return toast('账号名和 Cookie 必填',true);
-  const r=await api('/api/accounts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(r.ok){toast('已保存并热加载');$('#a-cookie').value='';loadAccounts();loadOverview();}
-  else toast('保存失败: '+JSON.stringify(r),true);
-}
 async function delAcc(n){if(!confirm('删除账号 '+n+' ？'))return;await api('/api/accounts/'+encodeURIComponent(n),{method:'DELETE'});toast('已删除');loadAccounts();}
 async function toggleAcc(n){await api(`/api/accounts/${encodeURIComponent(n)}/toggle`,{method:'POST'});loadAccounts();}
 

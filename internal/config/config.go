@@ -138,7 +138,7 @@ func (c *Config) applyDefaults() error {
 			"sdk_version":            "2.2.11-doubao.0",
 			"pkg_type":               "release_version",
 			"version_code":           "20800",
-			"device_platform":        "web",
+			"device_platform": "desktop",
 		}
 	}
 	if c.WorkMode.BotID == "" {
@@ -159,7 +159,7 @@ func (c *Config) applyDefaults() error {
 	// 默认 query（缺失才补）
 	def := map[string]string{
 		"aid": "582478", "real_aid": "582478", "channel": "win",
-		"client_platform": "pc_client", "device_platform": "web",
+		"client_platform": "pc_client", "device_platform": "desktop",
 		"doubao_device_platform": "desktop", "doubao_pc_version": "2.30.1",
 		"pc_version": "2.30.1", "pkg_type": "release_version", "language": "zh",
 		"region": "CN", "sys_region": "CN", "runtime": "web",
