@@ -169,14 +169,26 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
           <button class="ghost" onclick="clearChat()">清空</button></div>
         <div class="panel-b" style="padding:0">
           <div class="row" style="padding:10px 12px;border-bottom:1px solid var(--line)">
-            <input id="t-model" class="grow" value="deepseek" placeholder="模型">
-            <input id="t-conv" class="grow" value="panel-test" placeholder="会话 ID">
+            <label class="mono">模型</label>
+            <select id="t-model" style="width:180px"></select>
+            <label class="mono">思考强度</label>
+            <select id="t-effort" style="width:110px">
+              <option value="">默认</option>
+              <option value="0">关闭</option>
+              <option value="1">低</option>
+              <option value="2">中</option>
+              <option value="3">高</option>
+              <option value="4" selected>最高</option>
+            </select>
+            <input id="t-conv" style="width:150px" value="panel-test" placeholder="会话 ID">
+            <span class="mono" id="t-stat" style="margin-left:auto"></span>
           </div>
           <div id="chat" class="chat"></div>
           <div class="row" style="padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end">
             <textarea id="t-msg" placeholder="输入消息，Enter 发送，Shift+Enter 换行"
               style="min-height:46px;flex:1 1 320px;resize:vertical"></textarea>
-            <button onclick="sendChat()">发送</button>
+            <button id="btn-send" onclick="sendChat()">发送</button>
+            <button id="btn-stop" class="danger" style="display:none" onclick="stopChat()">停止</button>
           </div>
         </div>
       </div>
@@ -209,7 +221,7 @@ document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
   ['overview','accounts','pool','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
   $('#title').textContent=TITLES[v];
   if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
-  if(v==='pool')loadPool(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings();
+  if(v==='pool')loadPool(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
 });
 
 async function loadOverview(){
@@ -294,6 +306,20 @@ function addMsg(role,text){
   return {reasoning:r,content:c};
 }
 function clearChat(){$('#chat').innerHTML='';}
+let chatAbort=null;
+async function loadModels(){
+  const sel=$('#t-model');
+  try{
+    const r=await api('/api/models');
+    const list=(r.models||r.items||[]).map(m=>m.id||m.name).filter(Boolean);
+    sel.innerHTML='';
+    (list.length?list:['doubao','deepseek']).forEach(id=>{
+      const o=document.createElement('option'); o.value=id; o.textContent=id; sel.appendChild(o);
+    });
+    if(list.includes('deepseek')) sel.value='deepseek';
+  }catch(e){ sel.innerHTML='<option>doubao</option>'; }
+}
+function stopChat(){ if(chatAbort){ chatAbort.abort(); } }
 async function sendChat(){
   const ta=$('#t-msg'), text=ta.value.trim();
   if(!text) return;
@@ -301,33 +327,50 @@ async function sendChat(){
   addMsg('user',text);
   const bot=addMsg('bot','');
   bot.content.textContent='…';
+  $('#btn-send').style.display='none'; $('#btn-stop').style.display='';
+  chatAbort=new AbortController();
+  const t0=Date.now(), stat=$('#t-stat');
+  stat.textContent='生成中…';
   let resp;
   try{
     resp=await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:$('#t-model').value,conversation_id:$('#t-conv').value,message:text})});
-  }catch(e){ bot.content.textContent='请求失败: '+e; return; }
+      signal:chatAbort.signal,
+      body:JSON.stringify({model:$('#t-model').value,conversation_id:$('#t-conv').value,
+                           message:text,reasoning_effort:$('#t-effort').value})});
+  }catch(e){
+    bot.content.textContent='请求失败: '+e;
+    $('#btn-send').style.display=''; $('#btn-stop').style.display='none';
+    return;
+  }
   const rd=resp.body.getReader(), dec=new TextDecoder();
   let buf='', content='', reasoning='', started=false;
-  for(;;){
-    const {value,done}=await rd.read(); if(done) break;
-    buf+=dec.decode(value,{stream:true});
-    const lines=buf.split('\n'); buf=lines.pop();
-    for(const line of lines){
-      const s=line.trim();
-      if(!s.startsWith('data:')) continue;
-      const p=s.slice(5).trim();
-      if(p==='[DONE]') continue;
-      let j; try{ j=JSON.parse(p); }catch(e){ continue; }
-      if(j.error){ bot.content.textContent='错误: '+(j.error.message||JSON.stringify(j.error)); continue; }
-      const d=((j.choices||[])[0]||{}).delta||{};
-      if(d.reasoning_content){ reasoning+=d.reasoning_content; bot.reasoning.style.display='';
-        bot.reasoning.textContent='思考：'+reasoning; }
-      if(d.content){ content+=d.content; bot.content.textContent=content; started=true; }
+  try{
+    for(;;){
+      const {value,done}=await rd.read(); if(done) break;
+      buf+=dec.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        const t=line.trim(); if(!t.startsWith('data:')) continue;
+        const pl=t.slice(5).trim(); if(pl==='[DONE]') continue;
+        let j; try{ j=JSON.parse(pl); }catch(e){ continue; }
+        if(j.error){ bot.content.textContent='错误: '+(j.error.message||JSON.stringify(j.error)); continue; }
+        const d=((j.choices||[])[0]||{}).delta||{};
+        if(d.reasoning_content){ reasoning+=d.reasoning_content; bot.reasoning.style.display='';
+          bot.reasoning.textContent='思考：'+reasoning; }
+        if(d.content){ content+=d.content; bot.content.textContent=content; started=true; }
+      }
+      const secs=((Date.now()-t0)/1000).toFixed(1);
+      stat.textContent=`${secs}s · ${content.length} 字 · 约 ${Math.round(content.length/1.7)} token`;
+      $('#chat').scrollTop=$('#chat').scrollHeight;
     }
-    $('#chat').scrollTop=$('#chat').scrollHeight;
+  }catch(e){
+    if(e.name==='AbortError'){ bot.content.textContent=content||'（已停止）'; }
+  }finally{
+    $('#btn-send').style.display=''; $('#btn-stop').style.display='none'; chatAbort=null;
   }
-  if(!started && !reasoning) bot.content.textContent='（无输出）';
+  if(!started && !reasoning && !content) bot.content.textContent='（无输出）';
   toast('完成，已记入日志');
+  loadOverview();
 }
 document.addEventListener('keydown',function(e){
   if(e.target && e.target.id==='t-msg' && e.key==='Enter' && !e.shiftKey){

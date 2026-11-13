@@ -47,6 +47,7 @@ class TestIn(BaseModel):
     model: str = "doubao"
     message: str = "你好"
     conversation_id: str = "panel-test"
+    reasoning_effort: str = ""
 
 
 # ---------------- 概览 ----------------
@@ -140,6 +141,14 @@ def toggle_account(name: str):
     return {"ok": True, "enabled": new, "reload": core.sync_accounts()}
 
 
+# ---------------- 模型 ----------------
+@app.get("/api/models")
+def models():
+    d = core.gw_json("GET", "/v1/models")
+    items = [{"id": m.get("id")} for m in (d.get("data") or [])]
+    return {"models": items, "items": items}
+
+
 # ---------------- 号池 / 日志 / 设置 ----------------
 @app.get("/api/pool")
 def pool():
@@ -190,6 +199,8 @@ def test_chat(t: TestIn):
         "metadata": {"conversation_id": t.conversation_id},
         "messages": [{"role": "user", "content": t.message}],
     }
+    if t.reasoning_effort:
+        payload["reasoning_effort"] = t.reasoning_effort
     started = time.time()
     chars = {"n": 0}
 

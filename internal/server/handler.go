@@ -146,12 +146,13 @@ func (s *Server) chatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modelKey := s.cfg.ResolveModel(req.Model)
+	effortOverride := strings.TrimSpace(req.ReasoningEffort)
 	convKey := conversationKey(&req, raw)
 	st := s.getConv(convKey)
 
 	body, err := doubao.BuildBody(&req, modelKey, doubao.BuildOptions{
 		BotID: s.cfg.WorkMode.BotID, ModeID: s.cfg.WorkMode.ModeID,
-		ReasoningEffort: s.cfg.WorkMode.ReasoningEffort,
+		ReasoningEffort: effortOr(effortOverride, s.cfg.WorkMode.ReasoningEffort),
 		MemoryProfile:   s.cfg.WorkMode.MemoryProfile,
 		TotalWindow:     s.cfg.WorkMode.TotalWindow,
 		EnableSandbox:   s.cfg.WorkMode.EnableSandbox,
@@ -576,4 +577,12 @@ func conversationKey(req *doubao.ChatRequest, raw []byte) string {
 	}
 	sum := sha256.Sum256(raw)
 	return "r:" + hex.EncodeToString(sum[:12])
+}
+
+// effortOr 请求级 reasoning_effort 优先，缺省用配置值。
+func effortOr(v, def string) string {
+	if v != "" {
+		return v
+	}
+	return def
 }

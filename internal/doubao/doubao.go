@@ -40,6 +40,7 @@ type ChatRequest struct {
 	StreamOpts  *struct {
 		IncludeUsage bool `json:"include_usage"`
 	} `json:"stream_options"`
+	ReasoningEffort string `json:"reasoning_effort"`
 }
 
 // Text 提取 content 的纯文本。
