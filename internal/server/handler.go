@@ -4,6 +4,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"net"
 	"crypto/subtle"
 	"crypto/sha256"
 	"encoding/hex"
@@ -95,29 +96,50 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) { s.mux.Serve
 
 func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		token := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
-		if token == "" {
-			token = strings.TrimSpace(r.Header.Get("x-api-key"))
-		}
-		// 管理接口专用令牌（面板用），与业务密钥解耦，删业务密钥不影响面板
-		if len(r.URL.Path) >= 7 && r.URL.Path[:7] == "/admin/" && s.cfg.AdminToken != "" &&
-			subtle.ConstantTimeCompare([]byte(token), []byte(s.cfg.AdminToken)) == 1 {
-			next(w, r)
+		// 1) 管理接口：面板与网关同机，只允许回环地址访问（人到面板有 Basic Auth）
+		if strings.HasPrefix(r.URL.Path, "/admin/") {
+			host, _, err := net.SplitHostPort(r.RemoteAddr)
+			if err == nil {
+				ip := net.ParseIP(host)
+				if ip != nil && ip.IsLoopback() {
+					next(w, r)
+					return
+				}
+			}
+			// 远程管理：允许显式配置的 admin token（可选）
+			tok := bearerToken(r)
+			if s.cfg.AdminToken != "" && subtle.ConstantTimeCompare([]byte(tok), []byte(s.cfg.AdminToken)) == 1 {
+				next(w, r)
+				return
+			}
+			writeErr(w, http.StatusForbidden, "管理接口仅限本机访问", "admin_local_only", "permission_error")
 			return
 		}
-		if k, ok := lookupKey(token); ok {
+
+		// 2) 业务接口：校验分发密钥
+		tok := bearerToken(r)
+		if k, ok := lookupKey(tok); ok {
 			next(w, r.WithContext(context.WithValue(r.Context(), ctxKeyID, k.ID)))
 			return
 		}
 		keyMu.RLock()
 		empty := len(keysDB) == 0
 		keyMu.RUnlock()
-		if empty { // 未配置任何密钥：内网放行
-			next(w, r)
+		if empty {
+			writeErr(w, http.StatusUnauthorized, "尚未创建任何密钥，请在管理面板「密钥」页生成", "no_keys", "invalid_request_error")
 			return
 		}
 		writeErr(w, http.StatusUnauthorized, "invalid api key", "invalid_api_key", "invalid_request_error")
 	}
+}
+
+// bearerToken 从 Authorization / x-api-key 取令牌。
+func bearerToken(r *http.Request) string {
+	t := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	if t == "" {
+		t = strings.TrimSpace(r.Header.Get("x-api-key"))
+	}
+	return t
 }
 
 func (s *Server) healthz(w http.ResponseWriter, r *http.Request) {

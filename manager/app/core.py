@@ -12,7 +12,7 @@ import urllib.request
 
 GW_BASE = os.environ.get("GW_BASE", "http://127.0.0.1:8850").rstrip("/")
 GW_KEY = os.environ.get("GW_KEY", "")
-GW_ADMIN_TOKEN = os.environ.get("GW_ADMIN_TOKEN", "") or GW_KEY
+GW_ADMIN_TOKEN = os.environ.get("GW_ADMIN_TOKEN", "")  # 同机访问管理接口无需令牌，留空即可
 ACCOUNTS_FILE = os.environ.get(
     "ACCOUNTS_FILE", "/opt/doubao2api/accounts.json"
 )
