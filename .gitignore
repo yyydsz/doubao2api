@@ -1,0 +1,19 @@
+# 构建产物
+bin/
+*.exe
+*.test
+*.out
+
+# 本地配置与数据（含 Cookie，绝不入库）
+config.json
+config.smoke.json
+accounts.json
+panel.db
+*.db
+*.sqlite
+.env
+
+# 抓包/逆向产物
+capture/
+*.har
+req*.json
