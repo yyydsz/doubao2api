@@ -213,3 +213,26 @@ manager/app/         面板（FastAPI + 单页前端）
 ## License
 
 MIT
+
+---
+
+## 工作模式可用模型
+
+豆包工作模式（`agent_mode=1` / `mode_id=3`）实测可用的 10 个模型，已预置在 `config.example.json` 的 `models` + `model_aliases` 中：
+
+| 对外模型名 | 豆包 model_item_key | 实测 |
+|---|---|---|
+| `auto` | `9` | ✅ 可用 |
+| `doubao-2.1-lite` | `seed-lite-7b` | ✅ 可用 |
+| `doubao-2.1-pro` | `5` | ✅ 可用 |
+| `deepseek-v4-flash` | `person-deepseek-v4-1-flash-261017` | ✅ 可用 |
+| `deepseek-v4-pro` | `person-deepseek-v4-pro-ga-260813` | ✅ 可用 |
+| `kimi-k3` | `person-kimi-k3-261111` | ✅ 可用 |
+| `kimi-k3.1-pro` | `person-kimi-k3-1-pro-261111` | ✅ 可用 |
+| `kimi-k3.1-pro-fast` | `person-kimi-k3-1-pro-highspeed-261111` | ✅ 可用 |
+| `glm-5.3` | `person-glm-5-3-261111` | ⚠️ 上游返回通用错误（可能受账号档位限制） |
+| `glm-5.3-flash` | `person-glm-5-3-flash-261111` | ⚠️ 同上 |
+
+兼容别名：`doubao`、`deepseek` 均指向 `person-deepseek-v4-1-flash-261017`。
+
+> 清单来源：客户端 `_DesktopActionBarBriefListRequestCacheDataV1` 缓存（`modeSelectData.menuConfV2.mode_list`），非接口下发。豆包若调整模型，同步更新 `model_aliases` 即可。

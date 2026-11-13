@@ -1,8 +1,9 @@
 {
   "listen": "127.0.0.1:8850",
-  "api_keys": ["sk-downstream-change-me"],
+  "api_keys": [
+    "sk-downstream-change-me"
+  ],
   "log_level": "info",
-
   "upstream": {
     "chat_url": "https://www.doubao.com/chat/completion",
     "timeout_seconds": 300,
@@ -32,7 +33,6 @@
       "chromium_version": "147.0.7727.149"
     }
   },
-
   "accounts": [
     {
       "name": "acc-1",
@@ -43,14 +43,33 @@
       "note": "豆包账号 1"
     }
   ],
-
   "default_model": "doubao",
-  "models": ["doubao", "deepseek"],
+  "models": [
+    "auto",
+    "doubao-2.1-lite",
+    "doubao-2.1-pro",
+    "deepseek-v4-flash",
+    "deepseek-v4-pro",
+    "kimi-k3",
+    "kimi-k3.1-pro",
+    "kimi-k3.1-pro-fast",
+    "glm-5.3",
+    "glm-5.3-flash"
+  ],
   "model_aliases": {
     "doubao": "person-deepseek-v4-1-flash-261017",
-    "deepseek": "person-deepseek-v4-1-flash-261017"
+    "deepseek": "person-deepseek-v4-1-flash-261017",
+    "auto": "9",
+    "doubao-2.1-lite": "seed-lite-7b",
+    "doubao-2.1-pro": "5",
+    "deepseek-v4-flash": "person-deepseek-v4-1-flash-261017",
+    "deepseek-v4-pro": "person-deepseek-v4-pro-ga-260813",
+    "kimi-k3": "person-kimi-k3-261111",
+    "kimi-k3.1-pro": "person-kimi-k3-1-pro-261111",
+    "kimi-k3.1-pro-fast": "person-kimi-k3-1-pro-highspeed-261111",
+    "glm-5.3": "person-glm-5-3-261111",
+    "glm-5.3-flash": "person-glm-5-3-flash-261111"
   },
-
   "work_mode": {
     "enabled": true,
     "bot_id": "7338286299411103781",
@@ -61,7 +80,6 @@
     "enable_sandbox": false,
     "workspace": ""
   },
-
   "pool": {
     "rate_limit_cooldown": "60s",
     "overload_cooldown": "15s",
@@ -69,5 +87,10 @@
     "large_request_bytes": 262144,
     "large_budget": 6,
     "large_window": "2m"
+  },
+  "checkin": {
+    "enabled": true,
+    "hour": 9,
+    "scene": "pc_incentive_task_mvp_v3"
   }
 }
