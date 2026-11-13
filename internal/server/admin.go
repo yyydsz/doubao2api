@@ -130,3 +130,36 @@ func (s *Server) adminDelete(w http.ResponseWriter, r *http.Request) {
 	s.pool.Remove(name)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "removed": name, "total": s.pool.Len()})
 }
+
+// loadAccountsFile 启动时把 accounts.json 里的账号装进池子（重启不丢号）。
+func (s *Server) loadAccountsFile() {
+	raw, err := os.ReadFile(s.accountsPath())
+	if err != nil {
+		return
+	}
+	var f accountsFile
+	if json.Unmarshal(raw, &f) != nil {
+		return
+	}
+	n := 0
+	s.mu.Lock()
+	for i := range f.Accounts {
+		a := f.Accounts[i]
+		if a.Name == "" || a.Cookie == "" {
+			continue
+		}
+		if a.LocalAppID == "" {
+			a.LocalAppID = "582478"
+		}
+		if _, exists := s.accs[a.Name]; exists {
+			continue
+		}
+		s.accs[a.Name] = a
+		s.pool.Add(pool.Key{Name: a.Name, Key: a.Name})
+		n++
+	}
+	s.mu.Unlock()
+	if n > 0 {
+		logf("startup_accounts loaded=%d total=%d", n, s.pool.Len())
+	}
+}

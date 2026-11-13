@@ -102,6 +102,8 @@ pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:1
       <div class="grid cards">
         <div class="card"><div class="k">启用账号</div><div class="v" id="c-acc">-</div></div>
         <div class="card"><div class="k">号池健康</div><div class="v" id="c-healthy">-</div></div>
+        <div class="card"><div class="k">剩余额度</div><div class="v" id="c-quota">-</div><div class="k" id="c-quota-sub" style="margin-top:4px"></div></div>
+        <div class="card"><div class="k">今日消耗</div><div class="v" id="c-today">-<small>token</small></div><div class="k" id="c-today-sub" style="margin-top:4px"></div></div>
         <div class="card"><div class="k">今日请求</div><div class="v" id="c-req">-</div></div>
         <div class="card"><div class="k">平均延迟</div><div class="v" id="c-lat">-<small>ms</small></div></div>
       </div>
@@ -211,6 +213,14 @@ async function loadOverview(){
   $('#c-acc').textContent=d.accounts_enabled??'-';
   $('#c-healthy').textContent=on?`${g.healthy} / ${g.total}`:'-';
   $('#c-req').textContent=d.requests_today??'-';
+  const q=d.quota||{};
+  if(q.error||q.total===undefined){$('#c-quota').textContent='—';$('#c-quota-sub').textContent=q.error||'';}
+  else{
+    $('#c-quota').textContent=Math.round(q.remaining);
+    $('#c-quota-sub').textContent=`已用 ${q.used}/${q.total}（${q.percent}%）`;
+  }
+  $('#c-today').innerHTML=(d.today_tokens_est??0)+'<small>token</small>';
+  $('#c-today-sub').textContent=`输出 ${d.today_chars??0} 字符（估算）`;
   $('#c-lat').innerHTML=(d.avg_latency_ms??'-')+'<small>ms</small>';
   const rows=(g.accounts||[]).map(a=>`<tr><td>${a.name}</td>
     <td>${a.disabled?'<span class="pill bad">停用</span>':(a.cooling?'<span class="pill warn">冷却</span>':'<span class="pill ok">在线</span>')}</td>

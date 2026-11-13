@@ -58,10 +58,19 @@ def overview():
     today = conn.execute(
         "SELECT COUNT(*) c, COALESCE(AVG(latency_ms),0) a FROM req_logs WHERE date(ts)=date('now')"
     ).fetchone()
+    tokens_today = conn.execute(
+        "SELECT COALESCE(SUM(chars),0) c FROM req_logs WHERE date(ts)=date('now')"
+    ).fetchone()["c"]
     conn.close()
+    quota = core.gw_json("GET", "/admin/quota")
+    # 账号数以网关号池为准（含抓包/扫码导入、不在面板库里的号）
+    gw_total = 0 if "error" in st else st.get("total", 0)
     return {
-        "gateway": st if "error" not in st else st,
-        "accounts_enabled": n_acc,
+        "gateway": st,
+        "accounts_enabled": max(n_acc, gw_total),
+        "quota": quota,
+        "today_chars": tokens_today,
+        "today_tokens_est": int((tokens_today or 0) / 1.7),
         "requests_today": today["c"],
         "avg_latency_ms": int(today["a"] or 0),
     }

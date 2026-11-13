@@ -74,10 +74,12 @@ func New(cfg *config.Config) *Server {
 	}
 	s.mux.HandleFunc("POST /v1/chat/completions", s.withAuth(s.chatCompletions))
 	s.mux.HandleFunc("GET /v1/models", s.withAuth(s.models))
+	s.loadAccountsFile() // 启动时加载 accounts.json（面板写入的账号）
 	s.mux.HandleFunc("GET /healthz", s.healthz)
 	s.mux.HandleFunc("GET /status", s.withAuth(s.status))
 	// 面板用的账号管理接口
 	s.mux.HandleFunc("GET /admin/accounts", s.withAuth(s.adminListAccounts))
+	s.mux.HandleFunc("GET /admin/quota", s.withAuth(s.adminQuota))
 	s.mux.HandleFunc("POST /admin/reload", s.withAuth(s.adminReload))
 	s.mux.HandleFunc("POST /admin/cookie", s.withAuth(s.adminSetCookie))
 	s.mux.HandleFunc("DELETE /admin/accounts", s.withAuth(s.adminDelete))
