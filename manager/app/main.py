@@ -6,12 +6,15 @@
   web/index.html ← 前端静态页（等价 web/out）
 """
 import base64
+import hashlib
+import hmac
 import json
 import os
 import time
+import urllib.parse
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from pydantic import BaseModel
 
 from . import core
@@ -20,20 +23,106 @@ app = FastAPI(title="doubao-manager", version="1.0")
 PANEL_AUTH = os.environ.get("PANEL_AUTH", "")  # "user:pass"，空=不鉴权
 
 
+SESSION_COOKIE = "ds_panel_sess"
+SESSION_SECRET = (os.environ.get("PANEL_SECRET") or PANEL_AUTH or "doubao-panel").encode()
+
+
+def _sign(val: str) -> str:
+    """对 "exp|user" 做 HMAC 签名，返回 cookie 值。"""
+    msg = val.encode()
+    mac = hmac.new(SESSION_SECRET, msg, hashlib.sha256).hexdigest()[:32]
+    return base64.urlsafe_b64encode(msg).decode() + "." + mac
+
+
+def _verify(raw: str) -> str | None:
+    """校验 cookie，返回用户名；失败返回 None。"""
+    try:
+        b64, mac = raw.split(".", 1)
+        msg = base64.urlsafe_b64decode(b64.encode()).decode()
+        want = hmac.new(SESSION_SECRET, msg.encode(), hashlib.sha256).hexdigest()[:32]
+        if not hmac.compare_digest(mac, want):
+            return None
+        exp_s, user = msg.split("|", 1)
+        if int(exp_s) < int(time.time()):
+            return None
+        return user
+    except Exception:
+        return None
+
+
+def _current_user(request) -> str | None:
+    raw = request.cookies.get(SESSION_COOKIE, "")
+    return _verify(raw) if raw else None
+
+
+LOGIN_HTML = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>登录 · 豆包管理器</title>
+<style>
+*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+background:#0b0e13;color:#e6edf3;font:14px/1.6 -apple-system,"Segoe UI","PingFang SC",sans-serif}
+.box{width:340px;background:#141a23;border:1px solid #1f2833;border-radius:14px;padding:26px}
+h1{margin:0 0 4px;font-size:17px}p.sub{margin:0 0 20px;color:#8b949e;font-size:12px}
+label{display:block;font-size:12px;color:#8b949e;margin:12px 0 6px}
+input{width:100%;background:#0d131a;border:1px solid #1f2833;color:#e6edf3;border-radius:8px;padding:10px 12px;font:inherit}
+input:focus{outline:none;border-color:#2ea043}
+button{width:100%;margin-top:18px;background:#2ea043;color:#04140a;border:0;border-radius:8px;
+padding:11px;font-weight:600;font-size:14px;cursor:pointer}button:hover{background:#3fb950}
+.err{color:#f85149;font-size:12px;margin-top:10px;min-height:16px}
+</style></head><body>
+<form class="box" method="post" action="/login">
+  <h1>豆包管理器</h1>
+  <p class="sub">doubao2api 号池控制台</p>
+  <label>用户名</label><input name="username" autocomplete="username" autofocus>
+  <label>密码</label><input name="password" type="password" autocomplete="current-password">
+  <button type="submit">登录</button>
+  <div class="err">__ERR__</div>
+</form></body></html>"""
+
+
 @app.middleware("http")
-async def basic_auth(request, call_next):
-    if PANEL_AUTH and not request.url.path.startswith("/v1/"):
-        h = request.headers.get("authorization", "")
-        ok = False
-        if h.startswith("Basic "):
-            try:
-                ok = base64.b64decode(h[6:]).decode() == PANEL_AUTH
-            except Exception:
-                ok = False
-        if not ok:
-            from fastapi.responses import Response
-            return Response(status_code=401, headers={"WWW-Authenticate": 'Basic realm="doubao-manager"'})
-    return await call_next(request)
+async def session_auth(request, call_next):
+    path = request.url.path
+    # 放行：登录页/登出/健康检查/网关接口
+    if not PANEL_AUTH or path in ("/login", "/logout", "/healthz") or path.startswith("/v1/"):
+        return await call_next(request)
+    if _current_user(request):
+        return await call_next(request)
+    # 未登录：接口返回 401 JSON，页面跳登录
+    if path.startswith("/api/"):
+        return JSONResponse({"error": {"code": "unauthorized", "message": "请先登录"}}, status_code=401)
+    return RedirectResponse("/login", status_code=302)
+
+
+@app.get("/login")
+def login_page(request: Request):
+    if _current_user(request):
+        return RedirectResponse("/", status_code=302)
+    return HTMLResponse(LOGIN_HTML.replace("__ERR__", ""))
+
+
+@app.post("/login")
+async def login_submit(request: Request):
+    raw = (await request.body()).decode("utf-8", "ignore")
+    form = dict(urllib.parse.parse_qsl(raw, keep_blank_values=True))
+    username = (form.get("username") or "").strip()
+    password = form.get("password") or ""
+    want_user, _, want_pass = PANEL_AUTH.partition(":")
+    if username == want_user and hmac.compare_digest(password, want_pass):
+        exp = int(time.time()) + 7 * 24 * 3600
+        resp = RedirectResponse("/", status_code=302)
+        resp.set_cookie(SESSION_COOKIE, _sign(f"{exp}|{username}"), max_age=7 * 24 * 3600,
+                        httponly=True, samesite="lax")
+        return resp
+    return HTMLResponse(LOGIN_HTML.replace("__ERR__", "用户名或密码不正确"), status_code=401)
+
+
+@app.get("/logout")
+def logout():
+    resp = RedirectResponse("/login", status_code=302)
+    resp.delete_cookie(SESSION_COOKIE)
+    return resp
+
+
 WEB_DIR = os.path.join(os.path.dirname(__file__), "web")
 
 
