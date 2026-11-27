@@ -2,519 +2,2177 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>豆包管理器</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>豆包管理器 · doubao2api</title>
+<script>
+(function(){
+  try {
+    var t = localStorage.getItem('doubao_theme');
+    if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
+})();
+</script>
 <style>
 :root{
-  --bg:#0b0e13; --side:#0f141b; --card:#141a23; --line:#1f2833;
-  --fg:#e6edf3; --dim:#8b949e; --accent:#3fb950; --accent2:#2ea043;
-  --warn:#d29922; --bad:#f85149; --blue:#58a6ff;
+  --bg:#f6f7f9;
+  --surface:#ffffff;
+  --surface-2:#f2f4f7;
+  --surface-hover:#eef1f5;
+  --border:#e4e7ec;
+  --border-strong:#d0d5dd;
+  --fg:#101828;
+  --fg-2:#475467;
+  --fg-3:#667085;
+  --accent:#10b981;
+  --accent-hover:#059669;
+  --accent-fg:#047857;
+  --accent-soft:rgba(16,185,129,.10);
+  --accent-ring:rgba(16,185,129,.22);
+  --blue:#2563eb;
+  --blue-soft:rgba(37,99,235,.10);
+  --warn:#d97706;
+  --warn-soft:rgba(217,119,6,.12);
+  --bad:#dc2626;
+  --bad-soft:rgba(220,38,38,.10);
+  --code-bg:#f2f4f7;
+  --code-block-bg:#11161f;
+  --code-block-fg:#e6edf3;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.04);
+  --shadow:0 6px 20px rgba(16,24,40,.06);
+  --shadow-lg:0 16px 40px rgba(16,24,40,.12);
+  --radius:12px;
+  --radius-sm:8px;
+  --sidebar-w:240px;
+  --topbar-h:60px;
+  --font:-apple-system,BlinkMacSystemFont,"Inter","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Monaco,Consolas,monospace;
 }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);
-  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif}
+[data-theme="dark"]{
+  --bg:#0a0d12;
+  --surface:#11161f;
+  --surface-2:#171e2a;
+  --surface-hover:#1c2534;
+  --border:#222b38;
+  --border-strong:#313e52;
+  --fg:#f0f4f8;
+  --fg-2:#a4b1c3;
+  --fg-3:#728096;
+  --accent:#10b981;
+  --accent-hover:#34d399;
+  --accent-fg:#34d399;
+  --accent-soft:rgba(16,185,129,.14);
+  --accent-ring:rgba(16,185,129,.28);
+  --blue:#60a5fa;
+  --blue-soft:rgba(96,165,250,.14);
+  --warn:#f59e0b;
+  --warn-soft:rgba(245,158,11,.15);
+  --bad:#f87171;
+  --bad-soft:rgba(248,113,113,.15);
+  --code-bg:#1b2330;
+  --code-block-bg:#080b10;
+  --code-block-fg:#e6edf3;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.28);
+  --shadow:0 8px 24px rgba(0,0,0,.36);
+  --shadow-lg:0 18px 48px rgba(0,0,0,.55);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font:14px/1.55 var(--font);
+  -webkit-font-smoothing:antialiased;
+  transition:background .2s ease,color .2s ease;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--fg-3)}
+
+/* Layout */
 .layout{display:flex;min-height:100vh}
-/* 侧栏 */
-aside{width:212px;flex:none;background:var(--side);border-right:1px solid var(--line);
-  display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
-.brand{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
-.brand h1{font-size:15px;margin:0 0 2px;letter-spacing:.3px}
-.brand span{font-size:11px;color:var(--dim)}
-nav{padding:10px 8px;display:flex;flex-direction:column;gap:2px}
-nav a{padding:9px 12px;border-radius:8px;color:var(--dim);text-decoration:none;font-size:13px;
-  display:flex;align-items:center;gap:9px;cursor:pointer}
-nav a:hover{background:#161d27;color:var(--fg)}
-nav a.on{background:rgba(63,185,80,.12);color:var(--accent);font-weight:600}
-nav a i{width:16px;text-align:center;font-style:normal;opacity:.9}
-.sidefoot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line);font-size:11px;color:var(--dim)}
-/* 主区 */
-main{flex:1;min-width:0;padding:22px 26px 40px}
-.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-.topbar h2{margin:0;font-size:17px;font-weight:600}
-.pill{padding:3px 10px;border-radius:99px;font-size:12px;border:1px solid transparent;white-space:nowrap}
-.ok{background:rgba(63,185,80,.14);color:var(--accent);border-color:rgba(63,185,80,.3)}
-.warn{background:rgba(210,153,34,.14);color:var(--warn);border-color:rgba(210,153,34,.3)}
-.bad{background:rgba(248,81,73,.14);color:var(--bad);border-color:rgba(248,81,73,.3)}
+.backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  backdrop-filter:blur(2px);z-index:40;opacity:0;transition:opacity .2s ease;
+}
+.backdrop.show{display:block;opacity:1}
+
+/* Sidebar */
+aside{
+  width:var(--sidebar-w);flex:none;
+  background:var(--surface);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;z-index:50;
+  transition:transform .24s cubic-bezier(.22,1,.36,1),background .2s ease,border-color .2s ease;
+}
+.brand{
+  height:var(--topbar-h);padding:0 18px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:11px;
+}
+.brand-logo{
+  width:32px;height:32px;border-radius:9px;flex:none;
+  background:linear-gradient(135deg,#10b981,#059669);
+  color:#fff;display:grid;place-items:center;
+  box-shadow:0 4px 12px rgba(16,185,129,.28);
+}
+.brand-text h1{font-size:14px;font-weight:700;margin:0;letter-spacing:-.01em;line-height:1.2}
+.brand-text span{font-size:11px;color:var(--fg-3);display:block;margin-top:1px}
+
+.nav-wrap{flex:1;overflow-y:auto;padding:12px 10px}
+.nav-group{margin-bottom:14px}
+.nav-label{
+  font-size:11px;font-weight:600;color:var(--fg-3);
+  padding:4px 10px 6px;letter-spacing:.04em;text-transform:uppercase;
+}
+nav{display:flex;flex-direction:column;gap:2px}
+nav a{
+  padding:8px 10px;border-radius:var(--radius-sm);
+  color:var(--fg-2);text-decoration:none;font-size:13.5px;font-weight:500;
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  transition:background .15s ease,color .15s ease;
+  user-select:none;
+}
+nav a svg{width:17px;height:17px;flex:none;opacity:.75;transition:opacity .15s ease}
+nav a:hover{background:var(--surface-hover);color:var(--fg)}
+nav a:hover svg{opacity:1}
+nav a.on{background:var(--accent-soft);color:var(--accent-fg);font-weight:600}
+nav a.on svg{opacity:1;color:var(--accent)}
+
+.sidefoot{
+  padding:12px 14px;border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--fg-3);
+}
+.gw-mini{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 9px;border-radius:var(--radius-sm);background:var(--surface-2);
+  font-family:var(--mono);font-size:11px;color:var(--fg-2);
+  overflow:hidden;
+}
+.gw-mini span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidefoot-actions{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.sidefoot a.logout{
+  color:var(--fg-3);text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+  padding:4px 6px;border-radius:6px;transition:color .15s ease,background .15s ease;
+}
+.sidefoot a.logout:hover{color:var(--bad);background:var(--bad-soft)}
+
+/* Main Area */
+.main-wrap{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  height:var(--topbar-h);position:sticky;top:0;z-index:30;
+  background:color-mix(in srgb,var(--surface) 86%,transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  padding:0 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.topbar-l{display:flex;align-items:center;gap:10px;min-width:0}
+.menu-btn{
+  display:none;width:34px;height:34px;padding:0;border-radius:8px;
+  background:transparent;border:1px solid var(--border);color:var(--fg);
+  align-items:center;justify-content:center;cursor:pointer;
+}
+.topbar-title{min-width:0}
+.topbar-title h2{margin:0;font-size:16px;font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.topbar-title p{margin:1px 0 0;font-size:12px;color:var(--fg-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-r{display:flex;align-items:center;gap:8px;flex:none}
+
+main{flex:1;padding:22px 24px 44px;max-width:1360px;width:100%;margin:0 auto}
+
+/* Pills & Badges */
+.pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:4px 10px;border-radius:99px;font-size:12px;font-weight:500;
+  border:1px solid transparent;white-space:nowrap;line-height:1.2;
+}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill.ok{background:var(--accent-soft);color:var(--accent-fg);border-color:color-mix(in srgb,var(--accent) 26%,transparent)}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:color-mix(in srgb,var(--warn) 26%,transparent)}
+.pill.bad{background:var(--bad-soft);color:var(--bad);border-color:color-mix(in srgb,var(--bad) 26%,transparent)}
+.pill.blue{background:var(--blue-soft);color:var(--blue);border-color:color-mix(in srgb,var(--blue) 26%,transparent)}
+.pill.neutral{background:var(--surface-2);color:var(--fg-2);border-color:var(--border)}
+
+.tag{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11.5px;font-weight:500;padding:2px 8px;border-radius:6px;
+  background:var(--surface-2);color:var(--fg-2);border:1px solid var(--border);
+}
+
+/* KPI Grid */
 .grid{display:grid;gap:14px}
-.cards{grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:18px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
-.card .k{font-size:12px;color:var(--dim);margin-bottom:6px}
-.card .v{font-size:24px;font-weight:600;letter-spacing:.5px}
-.card .v small{font-size:12px;color:var(--dim);font-weight:400;margin-left:4px}
-.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
-.panel-h{padding:13px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;
-  justify-content:space-between;font-size:13px;font-weight:600}
-.panel-b{padding:16px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
-th{color:var(--dim);font-weight:500;font-size:12px}
+.cards{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:18px}
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;box-shadow:var(--shadow-sm);
+  transition:border-color .15s ease,transform .15s ease,box-shadow .15s ease;
+}
+.card:hover{border-color:var(--border-strong)}
+.card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.card .k{font-size:12.5px;font-weight:500;color:var(--fg-3)}
+.card-ico{
+  width:30px;height:30px;border-radius:8px;background:var(--surface-2);color:var(--fg-2);
+  display:grid;place-items:center;
+}
+.card-ico.ok{background:var(--accent-soft);color:var(--accent-fg)}
+.card-ico.blue{background:var(--blue-soft);color:var(--blue)}
+.card-ico.warn{background:var(--warn-soft);color:var(--warn)}
+.card .v{
+  font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.15;
+  font-variant-numeric:tabular-nums;
+}
+.card .v small{font-size:12px;color:var(--fg-3);font-weight:500;margin-left:4px}
+.card .sub{font-size:12px;color:var(--fg-3);margin-top:6px;min-height:17px;font-variant-numeric:tabular-nums}
+.progress{height:5px;border-radius:99px;background:var(--surface-2);overflow:hidden;margin-top:9px}
+.progress>i{display:block;height:100%;border-radius:99px;background:var(--accent);transition:width .4s ease}
+.progress>i.warn{background:var(--warn)}
+.progress>i.bad{background:var(--bad)}
+
+/* Panels */
+.panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  margin-bottom:16px;box-shadow:var(--shadow-sm);overflow:hidden;
+}
+.panel-h{
+  padding:13px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+}
+.panel-hl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.panel-h h3{margin:0;font-size:14px;font-weight:600}
+.panel-hr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.panel-b{padding:18px}
+.panel-b.flush{padding:0}
+
+/* Tables */
+.table-wrap{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:11px 16px;text-align:left;border-bottom:1px solid var(--border);vertical-align:middle}
+th{
+  color:var(--fg-3);font-weight:600;font-size:12px;background:var(--surface-2);
+  white-space:nowrap;
+}
+tbody tr{transition:background .12s ease}
+tbody tr:hover{background:var(--surface-hover)}
 tr:last-child td{border-bottom:0}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--dim);
-  word-break:break-all;max-width:420px;display:inline-block}
-input,textarea,select{background:#0d131a;border:1px solid var(--line);color:var(--fg);
-  border-radius:8px;padding:8px 10px;font:inherit;width:100%}
-textarea{min-height:88px;font-family:ui-monospace,monospace;font-size:12px}
-button{background:var(--accent2);color:#04140a;border:0;border-radius:8px;padding:8px 14px;
-  font-weight:600;font-size:13px;cursor:pointer}
-button:hover{background:var(--accent)}
-button.ghost{background:transparent;color:var(--fg);border:1px solid var(--line);font-weight:500}
-button.ghost:hover{border-color:var(--dim)}
-button.danger{background:transparent;color:var(--bad);border:1px solid rgba(248,81,73,.35);font-weight:500}
+.mono{font-family:var(--mono);font-size:12px;color:var(--fg-2);word-break:break-all}
+.copyable{
+  cursor:pointer;border-radius:5px;padding:2px 5px;margin:-2px -5px;
+  transition:background .15s ease,color .15s ease;
+}
+.copyable:hover{background:var(--accent-soft);color:var(--accent-fg)}
+
+/* Forms & Buttons */
+label.field{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:500;color:var(--fg-2)}
+label.field .req{color:var(--bad);margin-left:2px}
+input,textarea,select{
+  background:var(--surface);border:1px solid var(--border-strong);color:var(--fg);
+  border-radius:var(--radius-sm);padding:8px 11px;font:13.5px/1.45 var(--font);width:100%;
+  transition:border-color .15s ease,box-shadow .15s ease,background .15s ease;
+}
+input:focus,textarea:focus,select:focus{
+  outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-ring);
+}
+input::placeholder,textarea::placeholder{color:var(--fg-3)}
+textarea{min-height:92px;font-family:var(--mono);font-size:12.5px;resize:vertical}
+
+.btn,button{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:var(--accent);color:#ffffff;border:1px solid transparent;
+  border-radius:var(--radius-sm);padding:7.5px 14px;
+  font:600 13px/1.3 var(--font);cursor:pointer;white-space:nowrap;
+  transition:background .15s ease,border-color .15s ease,color .15s ease,transform .08s ease,opacity .15s ease;
+}
+button:hover:not(:disabled){background:var(--accent-hover)}
+button:active:not(:disabled){transform:translateY(.5px)}
+button:disabled{opacity:.55;cursor:not-allowed}
+button.ghost{
+  background:var(--surface);color:var(--fg-2);border:1px solid var(--border-strong);font-weight:500;
+}
+button.ghost:hover:not(:disabled){background:var(--surface-hover);color:var(--fg);border-color:var(--fg-3)}
+button.soft{
+  background:var(--accent-soft);color:var(--accent-fg);border-color:transparent;font-weight:600;
+}
+button.soft:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 20%,transparent)}
+button.danger{
+  background:transparent;color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);font-weight:500;
+}
+button.danger:hover:not(:disabled){background:var(--bad-soft);border-color:var(--bad)}
+button.sm{padding:5px 10px;font-size:12px;border-radius:7px}
+button.icon-btn{
+  width:34px;height:34px;padding:0;background:var(--surface);color:var(--fg-2);
+  border:1px solid var(--border);border-radius:8px;
+}
+button.icon-btn:hover:not(:disabled){background:var(--surface-hover);color:var(--fg);border-color:var(--border-strong)}
+
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.row>*{flex:none}
 .grow{flex:1 1 180px}
-pre{background:#0d131a;border:1px solid var(--line);border-radius:10px;padding:12px;
-  max-height:360px;overflow:auto;font-size:12px;white-space:pre-wrap;margin:0}
-.empty{padding:26px;text-align:center;color:var(--dim);font-size:13px}
-.tag{font-size:11px;padding:1px 7px;border-radius:6px;background:#1b2430;color:var(--dim)}
-#toast{position:fixed;right:20px;bottom:20px;z-index:99;display:flex;flex-direction:column;gap:8px}
-.toast{background:#18212c;border:1px solid var(--line);border-left:3px solid var(--accent);
-  padding:10px 14px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+
+/* Segmented Tabs */
+.seg{
+  display:inline-flex;background:var(--surface-2);padding:3px;border-radius:9px;
+  border:1px solid var(--border);gap:2px;
+}
+.seg button{
+  background:transparent;color:var(--fg-2);border:0;padding:5px 12px;border-radius:6px;
+  font-size:12.5px;font-weight:500;box-shadow:none;
+}
+.seg button:hover:not(:disabled){background:transparent;color:var(--fg)}
+.seg button.on{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:var(--shadow-sm)}
+
+/* Search Input */
+.search-box{position:relative;width:220px}
+.search-box svg{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  width:15px;height:15px;color:var(--fg-3);pointer-events:none;
+}
+.search-box input{padding-left:32px;padding-top:6px;padding-bottom:6px;font-size:12.5px}
+
+/* Code / Pre */
+pre{
+  background:var(--code-block-bg);color:var(--code-block-fg);
+  border:1px solid var(--border);border-radius:10px;padding:14px 16px;
+  max-height:380px;overflow:auto;font:12.5px/1.6 var(--mono);white-space:pre-wrap;margin:0;
+}
+
+/* Alert Banner */
+.banner{
+  padding:12px 14px;border-radius:10px;font-size:13px;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  border:1px solid var(--border);background:var(--surface-2);color:var(--fg-2);
+}
+.banner.ok{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent-fg)}
+.banner.warn{background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent);color:var(--warn)}
+
+/* Empty State */
+.empty{padding:36px 20px;text-align:center;color:var(--fg-3);font-size:13px}
+.empty-ico{
+  width:40px;height:40px;border-radius:10px;background:var(--surface-2);color:var(--fg-3);
+  display:inline-grid;place-items:center;margin-bottom:8px;
+}
+
+/* QR Box */
+.qr-stage{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  padding:16px;border-radius:10px;background:var(--surface-2);border:1px dashed var(--border-strong);
+}
+.qr-stage img{
+  width:190px;height:190px;background:#fff;padding:10px;border-radius:12px;
+  box-shadow:var(--shadow);object-fit:contain;
+}
+
+/* Quota Groups */
+.qgroup-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.qgroup{
+  padding:12px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);
+}
+.qgroup-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12.5px;font-weight:600}
+.qgroup-m{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--fg-3);margin-top:6px}
+
+/* Usage Bar Cell */
+.bar-cell{display:flex;align-items:center;gap:10px}
+.bar-track{width:84px;height:6px;border-radius:99px;background:var(--surface-2);overflow:hidden;flex:none}
+.bar-track i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+
+/* Chat Playground */
+.chat-panel{display:flex;flex-direction:column;height:calc(100vh - 148px);min-height:540px}
+.chat-toolbar{
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);
+}
+.chat-toolbar .ctrl{display:flex;align-items:center;gap:6px}
+.chat-toolbar .ctrl span{font-size:12px;color:var(--fg-3);white-space:nowrap}
+.chat-toolbar select,.chat-toolbar input{padding:6px 10px;font-size:12.5px;width:auto}
+.chat-box{
+  flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:16px;
+  background:var(--bg);
+}
+.chat-welcome{
+  margin:auto;text-align:center;max-width:520px;padding:24px 12px;
+}
+.chat-welcome h4{margin:10px 0 6px;font-size:16px;font-weight:700}
+.chat-welcome p{margin:0 0 18px;font-size:13px;color:var(--fg-3)}
+.prompt-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip{
+  background:var(--surface);color:var(--fg-2);border:1px solid var(--border);
+  border-radius:99px;padding:7px 13px;font-size:12.5px;font-weight:500;cursor:pointer;
+}
+.chip:hover{background:var(--surface-hover);color:var(--fg);border-color:var(--accent)}
+
+.msg-row{display:flex;flex-direction:column;gap:4px;max-width:84%}
+.msg-row.user{align-self:flex-end;align-items:flex-end}
+.msg-row.bot{align-self:flex-start;align-items:flex-start;width:100%;max-width:86%}
+.msg-meta{font-size:11.5px;color:var(--fg-3);display:flex;align-items:center;gap:8px;padding:0 4px}
+.msg-bubble{
+  padding:12px 15px;border-radius:14px;font-size:13.5px;line-height:1.68;
+  word-break:break-word;box-shadow:var(--shadow-sm);
+}
+.msg-row.user .msg-bubble{
+  background:var(--accent);color:#fff;border-bottom-right-radius:4px;white-space:pre-wrap;
+}
+.msg-row.bot .msg-bubble{
+  background:var(--surface);border:1px solid var(--border);border-bottom-left-radius:4px;width:100%;
+}
+
+/* Reasoning Accordion */
+.reason-box{
+  margin-bottom:10px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface-2);overflow:hidden;
+}
+.reason-box summary{
+  list-style:none;cursor:pointer;padding:7px 11px;font-size:12px;font-weight:600;
+  color:var(--fg-2);display:flex;align-items:center;gap:7px;user-select:none;
+}
+.reason-box summary::-webkit-details-marker{display:none}
+.reason-box summary .chev{transition:transform .15s ease;width:14px;height:14px}
+.reason-box[open] summary .chev{transform:rotate(90deg)}
+.reason-body{
+  padding:8px 12px 10px;border-top:1px solid var(--border);
+  font-size:12.5px;line-height:1.6;color:var(--fg-3);white-space:pre-wrap;
+}
+
+/* Markdown Styling */
+.md p{margin:0 0 9px}
+.md p:last-child{margin-bottom:0}
+.md h1,.md h2,.md h3,.md h4{margin:14px 0 8px;line-height:1.35;font-weight:700}
+.md h1{font-size:17px}.md h2{font-size:15.5px}.md h3{font-size:14.5px}
+.md ul,.md ol{margin:6px 0 10px;padding-left:20px}
+.md li{margin:3px 0}
+.md blockquote{
+  margin:8px 0;padding:6px 12px;border-left:3px solid var(--accent);
+  background:var(--surface-2);color:var(--fg-2);border-radius:0 8px 8px 0;
+}
+.md code{
+  font-family:var(--mono);font-size:12px;background:var(--code-bg);
+  padding:1.5px 5px;border-radius:5px;
+}
+.md .code-wrap{
+  margin:10px 0;border-radius:10px;overflow:hidden;border:1px solid var(--border);
+  background:var(--code-block-bg);
+}
+.md .code-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 12px;background:rgba(255,255,255,.04);border-bottom:1px solid rgba(255,255,255,.08);
+  font:11.5px var(--mono);color:#94a3b8;
+}
+.md .code-head button{
+  padding:2px 8px;font-size:11px;background:rgba(255,255,255,.08);color:#e2e8f0;border:0;
+}
+.md .code-head button:hover{background:rgba(255,255,255,.16)}
+.md .code-wrap pre{border:0;border-radius:0;max-height:360px;padding:12px 14px;background:transparent}
+.md .code-wrap code{background:transparent;padding:0;color:var(--code-block-fg)}
+.md table{margin:10px 0;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.md th,.md td{padding:7px 10px;font-size:12.5px}
+.md a{color:var(--blue);text-decoration:none}
+.md a:hover{text-decoration:underline}
+.md hr{border:0;border-top:1px solid var(--border);margin:12px 0}
+
+.msg-actions{display:flex;align-items:center;gap:6px;margin-top:4px}
+.msg-actions button{padding:3px 8px;font-size:11.5px}
+
+.chat-input-bar{
+  padding:12px 16px;border-top:1px solid var(--border);background:var(--surface);
+  display:flex;align-items:flex-end;gap:10px;
+}
+.chat-input-bar textarea{min-height:44px;max-height:160px;font-family:var(--font);font-size:13.5px}
+
+/* Config KV Grid */
+.kv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.kv-item{
+  padding:13px 15px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);
+}
+.kv-item .k{font-size:12px;color:var(--fg-3);margin-bottom:5px}
+.kv-item .v{font-family:var(--mono);font-size:13px;color:var(--fg);word-break:break-all}
+
+/* Toast */
+#toast{position:fixed;right:20px;bottom:20px;z-index:120;display:flex;flex-direction:column;gap:8px;max-width:380px}
+.toast{
+  background:var(--surface);color:var(--fg);border:1px solid var(--border);
+  border-left:3px solid var(--accent);padding:11px 14px;border-radius:10px;
+  font-size:13px;box-shadow:var(--shadow-lg);
+  animation:slideIn .18s ease-out;
+}
 .toast.err{border-left-color:var(--bad)}
-.chat{height:430px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:14px}
-.msg{max-width:80%;padding:10px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-word;
-  font-size:13px;line-height:1.6;align-self:flex-start;background:#161d27;border:1px solid var(--line)}
-.msg.user{align-self:flex-end;background:rgba(88,166,255,.14);border-color:rgba(88,166,255,.35)}
-.reasoning{color:var(--dim);font-size:12px;font-style:italic;margin-bottom:6px}
-@media(max-width:820px){
-  aside{display:none} main{padding:16px}
+.toast.warn{border-left-color:var(--warn)}
+@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Modal */
+.modal-mask{
+  display:none;position:fixed;inset:0;z-index:110;background:rgba(0,0,0,.48);
+  backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px;
+}
+.modal-mask.show{display:flex}
+.modal{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  width:100%;max-width:520px;box-shadow:var(--shadow-lg);overflow:hidden;
+}
+.modal-h{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.modal-h h4{margin:0;font-size:14.5px;font-weight:700}
+.modal-b{padding:18px}
+.modal-f{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:var(--surface-2)}
+
+/* Pulse dot */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.pulsing{animation:pulse 1.4s ease-in-out infinite}
+
+/* Responsive */
+@media(max-width:860px){
+  aside{position:fixed;left:0;top:0;bottom:0;transform:translateX(-100%);box-shadow:var(--shadow-lg)}
+  aside.open{transform:translateX(0)}
+  .menu-btn{display:inline-flex}
+  .topbar{padding:0 14px}
+  .topbar-title p{display:none}
+  main{padding:16px 14px 36px}
+  .form-grid{grid-template-columns:1fr}
+  .search-box{width:100%}
+  .msg-row,.msg-row.bot{max-width:96%}
+  .chat-panel{height:calc(100vh - 116px)}
 }
 </style>
 </head>
 <body>
+<div class="backdrop" id="backdrop" onclick="closeSidebar()"></div>
+
 <div class="layout">
-  <aside>
-    <div class="brand"><h1>豆包管理器</h1><span>doubao2api · 号池控制台</span></div>
-    <nav>
-      <a data-v="overview" class="on"><i>◈</i>概览</a>
-      <a data-v="accounts"><i>◉</i>账号</a>
-      <a data-v="pool"><i>◎</i>号池</a>
-      <a data-v="keys"><i>⚿</i>密钥</a>
-      <a data-v="models"><i>▦</i>模型</a>
-      <a data-v="logs"><i>≡</i>请求日志</a>
-      <a data-v="test"><i>▶</i>测试台</a>
-      <a data-v="settings"><i>⚙</i>设置</a>
-    </nav>
+  <aside id="sidebar">
+    <div class="brand">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>豆包管理器</h1>
+        <span>doubao2api Console</span>
+      </div>
+    </div>
+
+    <div class="nav-wrap">
+      <div class="nav-group">
+        <div class="nav-label">监控总览</div>
+        <nav>
+          <a data-v="overview" class="on">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+            概览
+          </a>
+          <a data-v="pool">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            号池与签到
+          </a>
+          <a data-v="logs">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            请求日志
+          </a>
+        </nav>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">资源管理</div>
+        <nav>
+          <a data-v="accounts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            账号管理
+          </a>
+          <a data-v="keys">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+            密钥与用量
+          </a>
+          <a data-v="models">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+            模型清单
+          </a>
+        </nav>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-label">调试与配置</div>
+        <nav>
+          <a data-v="test">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            对话测试台
+          </a>
+          <a data-v="settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            设置与接入
+          </a>
+        </nav>
+      </div>
+    </div>
+
     <div class="sidefoot">
-      网关 <span id="gwbase">-</span><br>
-      <a href="/logout" style="color:var(--dim);text-decoration:none">退出登录</a>
+      <div class="gw-mini" title="网关地址">
+        <span id="gwbase">http://127.0.0.1:8850</span>
+      </div>
+      <div class="sidefoot-actions">
+        <span id="auto-tag" style="font-size:11px">每 15s 自动同步</span>
+        <a href="/logout" class="logout" title="退出当前登录会话">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          退出
+        </a>
+      </div>
     </div>
   </aside>
 
-  <main>
-    <div class="topbar">
-      <h2 id="title">概览</h2>
-      <span id="gwstate" class="pill warn">检测中…</span>
-    </div>
-
-    <!-- 概览 -->
-    <section id="v-overview">
-      <div class="grid cards">
-        <div class="card"><div class="k">启用账号</div><div class="v" id="c-acc">-</div></div>
-        <div class="card"><div class="k">号池健康</div><div class="v" id="c-healthy">-</div></div>
-        <div class="card"><div class="k">剩余额度</div><div class="v" id="c-quota">-</div><div class="k" id="c-quota-sub" style="margin-top:4px"></div></div>
-        <div class="card"><div class="k">今日消耗</div><div class="v" id="c-today">-<small>token</small></div><div class="k" id="c-today-sub" style="margin-top:4px"></div></div>
-        <div class="card"><div class="k">今日请求</div><div class="v" id="c-req">-</div></div>
-        <div class="card"><div class="k">平均延迟</div><div class="v" id="c-lat">-<small>ms</small></div></div>
+  <div class="main-wrap">
+    <header class="topbar">
+      <div class="topbar-l">
+        <button class="menu-btn" onclick="openSidebar()" aria-label="打开导航">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="topbar-title">
+          <h2 id="title">概览</h2>
+          <p id="subtitle">号池运行健康度、额度与今日用量总览</p>
+        </div>
       </div>
-      <div class="panel">
-        <div class="panel-h">号池实时状态 <button class="ghost" onclick="loadOverview()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-overview"></table></div>
+      <div class="topbar-r">
+        <span id="gwstate" class="pill warn"><span class="dot pulsing"></span>检测中…</span>
+        <button class="icon-btn" id="btn-theme" onclick="toggleTheme()" title="切换深色 / 浅色主题" aria-label="切换主题"></button>
+        <button class="icon-btn" onclick="refreshCurrent()" title="刷新当前页面" aria-label="刷新">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
       </div>
-    </section>
+    </header>
 
-    <!-- 账号 -->
-    <section id="v-accounts" style="display:none">
-      <div class="panel">
-        <div class="panel-h">扫码添加账号 <span class="tag">用豆包 App 扫码，登录后自动入池</span>
-          <button onclick="qrStart()">扫码加号</button></div>
-        <div class="panel-b">
-          <div id="qrbox" style="display:none;margin-top:4px" class="row">
-            <img id="qrimg" style="width:200px;height:200px;background:#fff;padding:8px;border-radius:10px" alt="二维码">
-            <div>
-              <div id="qrtext" class="mono">等待扫码…</div>
-              <button class="ghost" style="margin-top:8px" onclick="qrStop()">取消</button>
+    <main>
+      <!-- 1. 概览 -->
+      <section id="v-overview">
+        <div class="grid cards">
+          <div class="card">
+            <div class="card-top">
+              <span class="k">启用账号</span>
+              <span class="card-ico ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+            </div>
+            <div class="v" id="c-acc">-</div>
+            <div class="sub" id="c-acc-sub">号池已接入账号</div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="k">号池健康</span>
+              <span class="card-ico ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></span>
+            </div>
+            <div class="v" id="c-healthy">-</div>
+            <div class="progress"><i id="p-healthy" style="width:0%"></i></div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="k">剩余额度</span>
+              <span class="card-ico blue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+            </div>
+            <div class="v" id="c-quota">-</div>
+            <div class="sub" id="c-quota-sub">查询中…</div>
+            <div class="progress"><i id="p-quota" style="width:0%"></i></div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="k">今日消耗</span>
+              <span class="card-ico warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+            </div>
+            <div class="v" id="c-today">-<small>token</small></div>
+            <div class="sub" id="c-today-sub">-</div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="k">今日请求</span>
+              <span class="card-ico blue"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+            </div>
+            <div class="v" id="c-req">-</div>
+            <div class="sub" id="c-req-sub">近 7 天累计 - token</div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="k">平均延迟</span>
+              <span class="card-ico"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg></span>
+            </div>
+            <div class="v" id="c-lat">-<small>ms</small></div>
+            <div class="sub">面板测试台今日均值</div>
+          </div>
+        </div>
+
+        <div class="panel" id="p-qgroups" style="display:none">
+          <div class="panel-h">
+            <div class="panel-hl"><h3>额度分组明细</h3><span class="tag" id="q-acct-tag">-</span></div>
+          </div>
+          <div class="panel-b">
+            <div class="qgroup-grid" id="qgroup-list"></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>号池实时状态</h3>
+              <span class="tag" id="ov-count">0 个账号</span>
+            </div>
+            <div class="panel-hr">
+              <button class="ghost sm" onclick="switchView('accounts')">管理账号</button>
+              <button class="ghost sm" onclick="loadOverview()">刷新</button>
             </div>
           </div>
-          <div id="qr-hint" class="mono">点击右上角「扫码加号」生成二维码，用豆包 App 扫描并确认。</div>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">账号列表 <button class="ghost" onclick="loadAccounts()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-accounts"></table></div>
-      </div>
-    </section>
-
-    <!-- 号池 -->
-    <section id="v-pool" style="display:none">
-      <div class="panel">
-        <div class="panel-h">网关号池（实时）
-          <span>
-            <span class="mono" id="ck-info" style="margin-right:10px"></span>
-            <button class="ghost" onclick="loadPool()">刷新</button>
-            <button id="btn-checkin" onclick="runCheckin()">立即签到</button>
-          </span></div>
-        <div class="panel-b" style="padding:0"><table id="t-pool"></table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">每日签到记录 <button class="ghost" onclick="loadCheckin()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-checkin"></table></div>
-      </div>
-    </section>
-
-    <!-- 密钥 -->
-    <section id="v-keys" style="display:none">
-      <div class="panel">
-        <div class="panel-h">新增密钥 <span class="tag">创建后仅显示一次完整 key</span></div>
-        <div class="panel-b">
-          <div class="row">
-            <input id="k-name" class="grow" placeholder="密钥名称（如 dsh-prod）">
-            <button onclick="createKey()">生成密钥</button>
-          </div>
-          <pre id="k-new" style="display:none;margin-top:12px"></pre>
-        </div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">密钥列表 <button class="ghost" onclick="loadKeys()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-keys"></table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">分密钥用量 <span class="tag" id="u-days">近 7 天</span>
-          <button class="ghost" onclick="loadUsage()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-usage"></table></div>
-      </div>
-    </section>
-
-    <!-- 模型 -->
-    <section id="v-models" style="display:none">
-      <div class="panel">
-        <div class="panel-h">模型清单 <span class="tag">名称 / 豆包 key / 上下文 / 价格倍率</span>
-          <button class="ghost" onclick="loadModelsAdmin()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-models"></table></div>
-      </div>
-      <div class="panel">
-        <div class="panel-h">说明</div>
-        <div class="panel-b mono" style="line-height:1.9">
-          · <b>模型名</b>：客户端调用时填的 model 字段<br>
-          · <b>豆包 key</b>：实际发给豆包的 model_item_key<br>
-          · <b>上下文</b>：该模型可用的总窗口（token）<br>
-          · <b>倍率</b>：豆包显示的价格倍率，越高越贵<br>
-          · <b>默认</b>：客户端不指定模型时使用
-        </div>
-      </div>
-    </section>
-
-    <!-- 日志 -->
-    <section id="v-logs" style="display:none">
-      <div class="panel">
-        <div class="panel-h">最近请求 <button class="ghost" onclick="loadLogs()">刷新</button></div>
-        <div class="panel-b" style="padding:0"><table id="t-logs"></table></div>
-      </div>
-    </section>
-
-    <!-- 测试台（对话形式） -->
-    <section id="v-test" style="display:none">
-      <div class="panel">
-        <div class="panel-h">对话测试 <span class="tag">直连网关 · 流式</span>
-          <button class="ghost" onclick="clearChat()">清空</button></div>
-        <div class="panel-b" style="padding:0">
-          <div class="row" style="padding:10px 12px;border-bottom:1px solid var(--line)">
-            <label class="mono">模型</label>
-            <select id="t-model" style="width:180px"></select>
-            <label class="mono">思考强度</label>
-            <select id="t-effort" style="width:110px">
-              <option value="">默认</option>
-              <option value="0">关闭</option>
-              <option value="1">低</option>
-              <option value="2">中</option>
-              <option value="3">高</option>
-              <option value="4" selected>最高</option>
-            </select>
-            <input id="t-conv" style="width:150px" value="panel-test" placeholder="会话 ID">
-            <span class="mono" id="t-stat" style="margin-left:auto"></span>
-          </div>
-          <div id="chat" class="chat"></div>
-          <div class="row" style="padding:10px 12px;border-top:1px solid var(--line);align-items:flex-end">
-            <textarea id="t-msg" placeholder="输入消息，Enter 发送，Shift+Enter 换行"
-              style="min-height:46px;flex:1 1 320px;resize:vertical"></textarea>
-            <button id="btn-send" onclick="sendChat()">发送</button>
-            <button id="btn-stop" class="danger" style="display:none" onclick="stopChat()">停止</button>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-overview"></table></div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- 设置 -->
-    <section id="v-settings" style="display:none">
-      <div class="panel">
-        <div class="panel-h">运行配置 <span class="tag">只读</span></div>
-        <div class="panel-b"><pre id="p-settings">加载中…</pre></div>
-      </div>
-    </section>
-  </main>
+      <!-- 2. 账号管理 -->
+      <section id="v-accounts" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>添加 / 更新账号</h3>
+              <div class="seg" id="acc-mode-seg">
+                <button class="on" data-mode="cookie" onclick="setAccMode('cookie')">手动导入 Cookie（推荐）</button>
+                <button data-mode="qr" onclick="setAccMode('qr')">豆包 App 扫码</button>
+              </div>
+            </div>
+            <div class="panel-hr">
+              <span class="tag">保存后自动热加载到网关</span>
+            </div>
+          </div>
+
+          <div class="panel-b" id="acc-mode-cookie">
+            <div class="form-grid" style="margin-bottom:12px">
+              <label class="field">
+                <span>账号名称<span class="req">*</span></span>
+                <input id="f-name" placeholder="例如：main / acc-1（同名将覆盖更新）">
+              </label>
+              <label class="field">
+                <span>device_id（可选）</span>
+                <input id="f-device" placeholder="抓包 URL 中的 device_id，留空自动生成">
+              </label>
+              <label class="field">
+                <span>web_id / 备注（可选）</span>
+                <div class="row" style="gap:8px;flex-wrap:nowrap">
+                  <input id="f-web" placeholder="web_id">
+                  <input id="f-note" placeholder="备注说明">
+                </div>
+              </label>
+            </div>
+            <label class="field" style="margin-bottom:12px">
+              <span>豆包 Cookie<span class="req">*</span></span>
+              <textarea id="f-cookie" placeholder="直接粘贴完整 Cookie（支持带 Cookie: 前缀）：sessionid=...; sid_tt=...; ttwid=...; s_v_web_id=...; odin_tt=...; passport_csrf_token=..."></textarea>
+            </label>
+            <div class="row" style="justify-content:space-between">
+              <span class="mono" style="font-size:12px">提示：在豆包客户端/网页版抓包复制请求头里的 Cookie 即可，含 sessionid 与 sid_tt。</span>
+              <div class="row">
+                <button class="ghost" onclick="resetAccForm()">清空</button>
+                <button id="btn-save-acc" onclick="saveAccount()">保存并同步到号池</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-b" id="acc-mode-qr" style="display:none">
+            <div class="banner warn" style="margin-bottom:14px">
+              <span>扫码登录依赖上游签名参数，App 确认环节可能偶发失败；若超时建议切换至「手动导入 Cookie」。</span>
+            </div>
+            <div class="row" style="margin-bottom:14px">
+              <button onclick="qrStart()">生成登录二维码</button>
+              <button class="ghost" id="btn-qr-stop" style="display:none" onclick="qrStop()">取消轮询</button>
+            </div>
+            <div id="qrbox" class="qr-stage" style="display:none">
+              <img id="qrimg" alt="豆包扫码登录二维码">
+              <div style="flex:1;min-width:200px">
+                <div id="qr-badge" style="margin-bottom:8px"><span class="pill warn"><span class="dot pulsing"></span>等待扫码</span></div>
+                <div id="qrtext" class="mono">请使用豆包 App 扫描左侧二维码并在手机上确认登录…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>账号列表</h3>
+              <span class="tag" id="acc-count">0 个账号</span>
+            </div>
+            <div class="panel-hr">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="acc-search" placeholder="搜索账号 / 备注…" oninput="renderAccounts()">
+              </div>
+              <button class="ghost sm" onclick="loadAccounts()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-accounts"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 号池与签到 -->
+      <section id="v-pool" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>网关号池实时状态</h3>
+              <span class="tag" id="pool-summary">加载中…</span>
+            </div>
+            <div class="panel-hr">
+              <span class="tag" id="ck-info">自动签到：-</span>
+              <button class="ghost sm" onclick="loadPool()">刷新</button>
+              <button class="sm" id="btn-checkin" onclick="runCheckin('')">全部立即签到</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-pool"></table></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>每日签到记录</h3>
+              <span class="tag" id="ck-server-time"></span>
+            </div>
+            <div class="panel-hr">
+              <button class="ghost sm" onclick="loadCheckin()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-checkin"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 密钥与用量 -->
+      <section id="v-keys" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>生成下游 API 密钥</h3>
+              <span class="tag">用于 OpenAI SDK / Cherry Studio 调用 /v1/*</span>
+            </div>
+          </div>
+          <div class="panel-b">
+            <div class="row">
+              <input id="k-name" class="grow" placeholder="输入密钥备注名称（例如：cherry-studio / prod，留空自动命名）" onkeydown="if(event.key==='Enter')createKey()">
+              <button onclick="createKey()">生成新密钥</button>
+            </div>
+            <div id="k-new-wrap" class="banner ok" style="display:none;margin-top:12px;align-items:center">
+              <div style="min-width:0;flex:1">
+                <div style="font-size:12px;margin-bottom:3px;font-weight:600">新密钥已创建（请妥善保存）</div>
+                <div id="k-new" class="mono" style="color:inherit;font-weight:600"></div>
+              </div>
+              <div class="row" style="flex:none">
+                <button class="sm" onclick="copyText($('#k-new').textContent,'新密钥已复制')">一键复制</button>
+                <button class="ghost sm" onclick="$('#k-new-wrap').style.display='none'">关闭</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>密钥列表</h3>
+              <span class="tag" id="keys-count">0 把密钥</span>
+            </div>
+            <div class="panel-hr">
+              <button class="ghost sm" onclick="loadKeys()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-keys"></table></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>分密钥用量统计</h3>
+              <div class="seg" id="usage-days-seg">
+                <button data-days="1" onclick="setUsageDays(1)">近 1 天</button>
+                <button class="on" data-days="7" onclick="setUsageDays(7)">近 7 天</button>
+                <button data-days="30" onclick="setUsageDays(30)">近 30 天</button>
+              </div>
+            </div>
+            <div class="panel-hr">
+              <button class="ghost sm" onclick="loadUsage()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-usage"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 模型清单 -->
+      <section id="v-models" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>可用模型清单</h3>
+              <span class="tag" id="models-count">0 个模型</span>
+            </div>
+            <div class="panel-hr">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="model-search" placeholder="筛选模型名 / key…" oninput="renderModelsAdmin()">
+              </div>
+              <button class="soft sm" id="btn-test-all" onclick="testAllModels()">全部连通性测试</button>
+              <button class="ghost sm" onclick="loadModelsAdmin()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-models"></table></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h"><div class="panel-hl"><h3>字段说明</h3></div></div>
+          <div class="panel-b">
+            <div class="kv-grid">
+              <div class="kv-item"><div class="k">模型名（可点击复制）</div><div class="v" style="font-family:var(--font);font-size:12.5px">客户端调用 OpenAI 接口时填写的 <code>model</code> 参数。</div></div>
+              <div class="kv-item"><div class="k">豆包 key / item_id</div><div class="v" style="font-family:var(--font);font-size:12.5px">网关转发给豆包工作模式时实际映射的 <code>model_item_key</code> 与档位 ID。</div></div>
+              <div class="kv-item"><div class="k">上下文与 memory_profile</div><div class="v" style="font-family:var(--font);font-size:12.5px">该模型支持的最大窗口 token 数，网关按模型自动匹配下发。</div></div>
+              <div class="kv-item"><div class="k">倍率</div><div class="v" style="font-family:var(--font);font-size:12.5px">豆包工作模式官方积分消耗倍率，数值越低越节省额度。</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. 请求日志 -->
+      <section id="v-logs" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>最近请求日志</h3>
+              <div class="seg" id="log-filter-seg">
+                <button class="on" data-f="all" onclick="setLogFilter('all')">全部</button>
+                <button data-f="ok" onclick="setLogFilter('ok')">成功</button>
+                <button data-f="err" onclick="setLogFilter('err')">失败</button>
+              </div>
+            </div>
+            <div class="panel-hr">
+              <div class="search-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input id="log-search" placeholder="筛选模型 / 会话 / 错误…" oninput="renderLogs()">
+              </div>
+              <select id="log-limit" style="width:92px;padding:6px 8px;font-size:12.5px" onchange="loadLogs()">
+                <option value="50" selected>最近 50</option>
+                <option value="100">最近 100</option>
+                <option value="200">最近 200</option>
+              </select>
+              <button class="ghost sm" onclick="loadLogs()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b flush">
+            <div class="table-wrap"><table id="t-logs"></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. 对话测试台 -->
+      <section id="v-test" style="display:none">
+        <div class="panel chat-panel" style="margin-bottom:0">
+          <div class="chat-toolbar">
+            <div class="ctrl">
+              <span>模型</span>
+              <select id="t-model" style="min-width:170px"></select>
+            </div>
+            <div class="ctrl">
+              <span>思考强度</span>
+              <select id="t-effort" style="width:92px">
+                <option value="">默认</option>
+                <option value="0">关闭</option>
+                <option value="1">低</option>
+                <option value="2">中</option>
+                <option value="3">高</option>
+                <option value="4" selected>最高</option>
+              </select>
+            </div>
+            <div class="ctrl">
+              <span>会话</span>
+              <input id="t-conv" style="width:140px" value="panel-test" placeholder="会话 ID">
+              <button class="ghost sm" onclick="newConv()" title="生成新会话 ID 并清空对话">新会话</button>
+            </div>
+            <span class="mono" id="t-stat" style="margin-left:auto;font-size:12px"></span>
+            <button class="ghost sm" onclick="clearChat()">清空</button>
+          </div>
+
+          <div id="chat" class="chat-box"></div>
+
+          <div class="chat-input-bar">
+            <textarea id="t-msg" rows="1" placeholder="输入消息进行流式对话测试…（Enter 发送，Shift + Enter 换行）"></textarea>
+            <button id="btn-send" onclick="sendChat()" style="height:44px;padding:0 18px">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              发送
+            </button>
+            <button id="btn-stop" class="danger" style="display:none;height:44px;padding:0 16px" onclick="stopChat()">停止生成</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. 设置与接入 -->
+      <section id="v-settings" style="display:none">
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>运行配置</h3>
+              <span class="tag">只读</span>
+            </div>
+            <div class="panel-hr">
+              <button class="ghost sm" onclick="loadSettings()">刷新</button>
+            </div>
+          </div>
+          <div class="panel-b">
+            <div class="kv-grid" id="settings-cards"></div>
+            <details style="margin-top:14px">
+              <summary style="cursor:pointer;font-size:12.5px;color:var(--fg-3);user-select:none">查看原始 JSON 配置</summary>
+              <pre id="p-settings" style="margin-top:10px">加载中…</pre>
+            </details>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-h">
+            <div class="panel-hl">
+              <h3>快速接入客户端</h3>
+              <div class="seg" id="snippet-seg">
+                <button class="on" data-s="python" onclick="setSnippet('python')">Python SDK</button>
+                <button data-s="curl" onclick="setSnippet('curl')">cURL</button>
+                <button data-s="env" onclick="setSnippet('env')">环境变量 / Cherry Studio</button>
+              </div>
+            </div>
+            <div class="panel-hr">
+              <button class="soft sm" onclick="copyText($('#snippet-code').textContent,'接入代码已复制')">复制代码</button>
+            </div>
+          </div>
+          <div class="panel-b">
+            <pre id="snippet-code"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 </div>
+
+<!-- 通用弹窗 -->
+<div class="modal-mask" id="modal-mask" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-h">
+      <h4 id="modal-title">详情</h4>
+      <button class="icon-btn" onclick="closeModal()" aria-label="关闭">✕</button>
+    </div>
+    <div class="modal-b" id="modal-body"></div>
+    <div class="modal-f">
+      <button class="ghost sm" onclick="closeModal()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
-const $=s=>document.querySelector(s);
-const TITLES={overview:'概览',accounts:'账号',pool:'号池',keys:'密钥',models:'模型',logs:'请求日志',test:'测试台',settings:'设置'};
-let qrTimer=null,qrId=null;
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
 
-function toast(msg,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=msg;
-  $('#toast').appendChild(d);setTimeout(()=>d.remove(),3200);}
-async function api(path,opt){try{const r=await fetch(path,opt);return await r.json();}
-  catch(e){toast('请求失败: '+e,true);return {};}}
+const VIEWS = {
+  overview: { title: '概览', sub: '号池运行健康度、额度与今日用量总览' },
+  accounts: { title: '账号管理', sub: '手动导入 Cookie 或扫码登录，保存后自动热加载到网关' },
+  pool:     { title: '号池与签到', sub: '实时监控账号冷却/健康状态，管理每日自动签到' },
+  keys:     { title: '密钥与用量', sub: '签发下游 OpenAI 兼容 API Key 并按密钥统计消耗' },
+  models:   { title: '模型清单', sub: '查看豆包工作模式映射参数并一键测试各模型连通性' },
+  logs:     { title: '请求日志', sub: '排查测试台调用记录、响应耗时与上游报错信息' },
+  test:     { title: '对话测试台', sub: '直连网关进行流式对话，支持思考过程与 Markdown 渲染' },
+  settings: { title: '设置与接入', sub: '查看面板运行参数与 OpenAI 兼容客户端接入示例' }
+};
 
-document.querySelectorAll('nav a').forEach(a=>a.onclick=()=>{
-  document.querySelectorAll('nav a').forEach(x=>x.classList.remove('on'));a.classList.add('on');
-  const v=a.dataset.v;
-  ['overview','accounts','pool','keys','models','logs','test','settings'].forEach(k=>$('#v-'+k).style.display=(k===v?'':'none'));
-  $('#title').textContent=TITLES[v];
-  if(v==='overview')loadOverview(); if(v==='accounts')loadAccounts();
-  if(v==='pool'){loadPool();loadCheckin();} if(v==='keys')loadKeys(); if(v==='models')loadModelsAdmin(); if(v==='logs')loadLogs(); if(v==='settings')loadSettings(); if(v==='test'&&!$('#t-model').options.length)loadModels();
+let currentView = 'overview';
+let qrTimer = null, qrId = null;
+let chatAbort = null;
+let usageDays = 7;
+let logFilter = 'all';
+let cachedAccounts = [];
+let cachedModels = [];
+let cachedLogs = [];
+let cachedSettings = {};
+let modelTestResults = {};
+let revealedKeys = new Set();
+let currentSnippet = 'python';
+let chatMessagesCount = 0;
+
+/* ---------- 工具函数 ---------- */
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function fmtNum(n) {
+  if (n === null || n === undefined || Number.isNaN(Number(n))) return '-';
+  return Number(n).toLocaleString('zh-CN');
+}
+
+function fmtTime(ts) {
+  if (!ts) return '-';
+  const d = new Date(Number(ts) > 1e12 ? Number(ts) : Number(ts) * 1000);
+  if (Number.isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString('zh-CN', { hour12: false });
+}
+
+function fmtCtx(n) {
+  if (!n) return '-';
+  return n >= 1000 ? Math.round(n / 1000) + 'K' : String(n);
+}
+
+function toast(msg, type = 'ok') {
+  const d = document.createElement('div');
+  d.className = 'toast' + (type === 'err' ? ' err' : type === 'warn' ? ' warn' : '');
+  d.textContent = msg;
+  $('#toast').appendChild(d);
+  setTimeout(() => {
+    d.style.opacity = '0';
+    d.style.transition = 'opacity .2s ease';
+    setTimeout(() => d.remove(), 220);
+  }, 3200);
+}
+
+async function copyText(text, okMsg = '已复制到剪贴板') {
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(okMsg);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast(okMsg); }
+    catch { toast('复制失败，请手动复制', 'err'); }
+    ta.remove();
+  }
+}
+
+function openModal(title, html) {
+  $('#modal-title').textContent = title;
+  $('#modal-body').innerHTML = html;
+  $('#modal-mask').classList.add('show');
+}
+function closeModal() { $('#modal-mask').classList.remove('show'); }
+
+async function api(path, opt) {
+  try {
+    const r = await fetch(path, opt);
+    if (r.status === 401) {
+      toast('登录状态已失效，正在前往登录页…', 'warn');
+      setTimeout(() => { location.href = '/login'; }, 800);
+      return { error: { message: '未登录' } };
+    }
+    const text = await r.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: { message: text || ('HTTP ' + r.status) } }; }
+    if (!r.ok && !data.error) {
+      data.error = { message: data.detail || ('请求失败 HTTP ' + r.status) };
+    }
+    return data;
+  } catch (e) {
+    toast('网络请求失败: ' + e.message, 'err');
+    return { error: { message: String(e) } };
+  }
+}
+
+/* ---------- 主题切换 ---------- */
+function renderThemeIcon() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  $('#btn-theme').innerHTML = dark
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+}
+
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('doubao_theme', next); } catch {}
+  renderThemeIcon();
+}
+
+/* ---------- 导航与侧栏 ---------- */
+function openSidebar() { $('#sidebar').classList.add('open'); $('#backdrop').classList.add('show'); }
+function closeSidebar() { $('#sidebar').classList.remove('open'); $('#backdrop').classList.remove('show'); }
+
+function switchView(v) {
+  if (!VIEWS[v]) return;
+  currentView = v;
+  $$('nav a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+  Object.keys(VIEWS).forEach(k => { $('#v-' + k).style.display = k === v ? '' : 'none'; });
+  $('#title').textContent = VIEWS[v].title;
+  $('#subtitle').textContent = VIEWS[v].sub;
+  closeSidebar();
+  refreshCurrent();
+}
+
+function refreshCurrent() {
+  if (currentView === 'overview') loadOverview();
+  else if (currentView === 'accounts') loadAccounts();
+  else if (currentView === 'pool') { loadPool(); loadCheckin(); }
+  else if (currentView === 'keys') loadKeys();
+  else if (currentView === 'models') loadModelsAdmin();
+  else if (currentView === 'logs') loadLogs();
+  else if (currentView === 'settings') loadSettings();
+  else if (currentView === 'test') { if (!$('#t-model').options.length) loadModels(); }
+}
+
+$$('nav a').forEach(a => a.addEventListener('click', () => switchView(a.dataset.v)));
+
+/* ---------- 1. 概览 ---------- */
+async function loadOverview() {
+  const d = await api('/api/overview');
+  const g = d.gateway || {};
+  const on = !g.error;
+  const el = $('#gwstate');
+  el.className = 'pill ' + (on ? 'ok' : 'bad');
+  el.innerHTML = `<span class="dot${on ? '' : ' pulsing'}"></span>` + (on ? `网关在线 · ${g.healthy ?? 0}/${g.total ?? 0}` : '网关离线');
+
+  $('#c-acc').textContent = fmtNum(d.accounts_enabled ?? 0);
+  $('#c-acc-sub').textContent = on ? `网关已加载 ${g.total ?? 0} 个账号` : (g.error?.message || '等待网关连接');
+
+  const hPct = (on && g.total > 0) ? Math.round((g.healthy / g.total) * 100) : 0;
+  $('#c-healthy').textContent = on ? `${g.healthy ?? 0} / ${g.total ?? 0}` : '-';
+  const pH = $('#p-healthy');
+  pH.style.width = hPct + '%';
+  pH.className = hPct === 0 ? 'bad' : hPct < 60 ? 'warn' : '';
+
+  const q = d.quota || {};
+  const pQ = $('#p-quota');
+  if (q.error || q.total === undefined) {
+    $('#c-quota').textContent = '—';
+    $('#c-quota-sub').textContent = typeof q.error === 'string' ? q.error : (q.error?.message || '暂无额度数据');
+    pQ.style.width = '0%';
+    $('#p-qgroups').style.display = 'none';
+  } else {
+    $('#c-quota').textContent = fmtNum(Math.round(q.remaining ?? 0));
+    const pct = Number(q.percent ?? 0);
+    $('#c-quota-sub').textContent = `已用 ${fmtNum(Math.round(q.used ?? 0))} / ${fmtNum(Math.round(q.total ?? 0))}（${pct}%）`;
+    pQ.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    pQ.className = pct >= 90 ? 'bad' : pct >= 70 ? 'warn' : '';
+
+    if (Array.isArray(q.groups) && q.groups.length) {
+      $('#p-qgroups').style.display = '';
+      $('#q-acct-tag').textContent = q.account ? `账号：${q.account}` : '额度窗口';
+      $('#qgroup-list').innerHTML = q.groups.map(gr => {
+        const gp = Math.min(100, Math.max(0, Number(gr.percent || (gr.total ? (gr.used / gr.total) * 100 : 0))));
+        const cls = gp >= 90 ? 'bad' : gp >= 70 ? 'warn' : '';
+        return `<div class="qgroup">
+          <div class="qgroup-h"><span>${esc(gr.name || '默认额度窗口')}</span><span class="mono">${gp.toFixed(1)}%</span></div>
+          <div class="progress"><i class="${cls}" style="width:${gp}%"></i></div>
+          <div class="qgroup-m">
+            <span>已用 ${fmtNum(Math.round(gr.used || 0))} / ${fmtNum(Math.round(gr.total || 0))}</span>
+            <span>${gr.end_time ? '截止 ' + esc(fmtTime(gr.end_time)) : ''}</span>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      $('#p-qgroups').style.display = 'none';
+    }
+  }
+
+  $('#c-today').innerHTML = fmtNum(d.today_tokens_est ?? 0) + '<small>token</small>';
+  $('#c-today-sub').textContent = `输出 ${fmtNum(d.today_chars ?? 0)} 字符（估算）`;
+  const reqCount = Math.max(Number(d.requests_today ?? 0), Number(d.usage_today_requests ?? 0));
+  $('#c-req').textContent = fmtNum(reqCount);
+  $('#c-req-sub').textContent = `近 7 天累计 ${fmtNum(d.usage_tokens_7d ?? 0)} token`;
+  $('#c-lat').innerHTML = fmtNum(d.avg_latency_ms ?? 0) + '<small>ms</small>';
+
+  const accs = g.accounts || [];
+  $('#ov-count').textContent = `${accs.length} 个账号`;
+  const rows = accs.map(a => `<tr>
+    <td><strong>${esc(a.name)}</strong></td>
+    <td>${a.disabled ? '<span class="pill bad"><span class="dot"></span>停用</span>' : (a.cooling ? '<span class="pill warn"><span class="dot"></span>冷却中</span>' : '<span class="pill ok"><span class="dot"></span>在线</span>')}</td>
+    <td>${fmtNum(a.fails || 0)}</td>
+    <td class="mono">${esc(a.reason || '—')}</td>
+  </tr>`).join('');
+  $('#t-overview').innerHTML = `<thead><tr><th>账号</th><th>状态</th><th>失败次数</th><th>状态说明</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4" class="empty">暂无号池数据，请先前往「账号管理」导入豆包账号</td></tr>'}</tbody>`;
+}
+
+/* ---------- 2. 账号管理 ---------- */
+function setAccMode(mode) {
+  $$('#acc-mode-seg button').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+  $('#acc-mode-cookie').style.display = mode === 'cookie' ? '' : 'none';
+  $('#acc-mode-qr').style.display = mode === 'qr' ? '' : 'none';
+}
+
+function resetAccForm() {
+  ['#f-name', '#f-device', '#f-web', '#f-note', '#f-cookie'].forEach(s => { $(s).value = ''; });
+}
+
+function cleanCookie(raw) {
+  return raw.replace(/^\s*cookie\s*:\s*/i, '').replace(/[\r\n]+/g, ' ').trim();
+}
+
+async function saveAccount() {
+  const name = $('#f-name').value.trim();
+  const cookie = cleanCookie($('#f-cookie').value);
+  const device_id = $('#f-device').value.trim();
+  const web_id = $('#f-web').value.trim();
+  const note = $('#f-note').value.trim();
+  if (!name || !cookie) {
+    toast('请填写账号名称和 Cookie', 'warn');
+    return;
+  }
+  const btn = $('#btn-save-acc');
+  btn.disabled = true; btn.textContent = '保存并同步中…';
+  const r = await api('/api/accounts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, cookie, device_id, web_id, note })
+  });
+  btn.disabled = false; btn.textContent = '保存并同步到号池';
+  if (r.ok) {
+    toast(`账号「${name}」已保存并同步到网关`);
+    resetAccForm();
+    loadAccounts();
+    loadOverview();
+  } else {
+    toast('保存失败: ' + (r.error?.message || r.detail || '未知错误'), 'err');
+  }
+}
+
+async function loadAccounts() {
+  const d = await api('/api/accounts');
+  cachedAccounts = d.accounts || [];
+  renderAccounts();
+}
+
+function renderAccounts() {
+  const kw = ($('#acc-search').value || '').trim().toLowerCase();
+  const list = cachedAccounts.filter(a =>
+    !kw || (a.name || '').toLowerCase().includes(kw) || (a.note || '').toLowerCase().includes(kw) || (a.device_id || '').toLowerCase().includes(kw)
+  );
+  $('#acc-count').textContent = `${cachedAccounts.length} 个账号`;
+  const rows = list.map(a => {
+    const isGw = a.source === 'gateway';
+    return `<tr>
+      <td><strong>${esc(a.name)}</strong> ${isGw ? '<span class="tag">网关直连</span>' : ''}</td>
+      <td class="mono">${esc(a.device_id || '—')}</td>
+      <td>${esc(a.note || '—')}</td>
+      <td>${a.enabled ? '<span class="pill ok"><span class="dot"></span>启用</span>' : '<span class="pill bad"><span class="dot"></span>停用</span>'}</td>
+      <td class="mono">${esc(a.created_at || '—')}</td>
+      <td>
+        <div class="row" style="gap:6px">
+          <button class="ghost sm" data-act="edit-acc" data-name="${esc(a.name)}">更新</button>
+          ${isGw ? '' : `<button class="ghost sm" data-act="toggle-acc" data-name="${esc(a.name)}">${a.enabled ? '停用' : '启用'}</button>`}
+          <button class="danger sm" data-act="del-acc" data-name="${esc(a.name)}">删除</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  $('#t-accounts').innerHTML = `<thead><tr><th>账号</th><th>device_id</th><th>备注</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" class="empty">还没有账号，请在上方导入 Cookie 或扫码添加</td></tr>'}</tbody>`;
+}
+
+$('#t-accounts').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-act]');
+  if (!btn) return;
+  const act = btn.dataset.act, name = btn.dataset.name;
+  if (act === 'edit-acc') {
+    const acc = cachedAccounts.find(x => x.name === name);
+    setAccMode('cookie');
+    $('#f-name').value = acc?.name || name;
+    $('#f-device').value = acc?.device_id || '';
+    $('#f-web').value = acc?.web_id || '';
+    $('#f-note').value = acc?.note || '';
+    $('#f-cookie').focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast(`已填充「${name}」，粘贴新 Cookie 保存即可热更新`);
+  } else if (act === 'toggle-acc') {
+    const r = await api(`/api/accounts/${encodeURIComponent(name)}/toggle`, { method: 'POST' });
+    if (r.ok) { toast(r.enabled ? `已启用「${name}」` : `已停用「${name}」`); loadAccounts(); }
+    else toast('切换失败: ' + (r.error?.message || '未知错误'), 'err');
+  } else if (act === 'del-acc') {
+    if (!confirm(`确定删除账号「${name}」吗？该账号将立即移出号池。`)) return;
+    const r = await api('/api/accounts/' + encodeURIComponent(name), { method: 'DELETE' });
+    if (r.ok) { toast(`已删除账号「${name}」`); loadAccounts(); loadOverview(); }
+    else toast('删除失败: ' + (r.error?.message || '未知错误'), 'err');
+  }
 });
 
-async function loadOverview(){
-  const d=await api('/api/overview');
-  const g=d.gateway||{};
-  const on=!g.error;
-  const el=$('#gwstate');
-  el.className='pill '+(on?'ok':'bad');
-  el.textContent=on?`网关在线 · ${g.healthy}/${g.total}`:'网关离线';
-  $('#c-acc').textContent=d.accounts_enabled??'-';
-  $('#c-healthy').textContent=on?`${g.healthy} / ${g.total}`:'-';
-  $('#c-req').textContent=d.requests_today??'-';
-  const q=d.quota||{};
-  if(q.error||q.total===undefined){$('#c-quota').textContent='—';$('#c-quota-sub').textContent=q.error||'';}
-  else{
-    $('#c-quota').textContent=Math.round(q.remaining);
-    $('#c-quota-sub').textContent=`已用 ${q.used}/${q.total}（${q.percent}%）`;
+/* QR Login */
+async function qrStart() {
+  $('#qrbox').style.display = 'flex';
+  $('#btn-qr-stop').style.display = '';
+  $('#qr-badge').innerHTML = '<span class="pill warn"><span class="dot pulsing"></span>请求二维码中…</span>';
+  $('#qrtext').textContent = '正在向豆包 Passport 请求二维码…';
+  $('#qrimg').style.display = 'none';
+  const r = await api('/api/qr', { method: 'POST' });
+  if (r.error) {
+    $('#qr-badge').innerHTML = '<span class="pill bad"><span class="dot"></span>获取失败</span>';
+    $('#qrtext').textContent = r.error.message || JSON.stringify(r.error);
+    return;
   }
-  $('#c-today').innerHTML=(d.today_tokens_est??0)+'<small>token</small>';
-  $('#c-today-sub').textContent=`输出 ${d.today_chars??0} 字符（估算）`;
-  $('#c-lat').innerHTML=(d.avg_latency_ms??'-')+'<small>ms</small>';
-  const rows=(g.accounts||[]).map(a=>`<tr><td>${a.name}</td>
-    <td>${a.disabled?'<span class="pill bad">停用</span>':(a.cooling?'<span class="pill warn">冷却</span>':'<span class="pill ok">在线</span>')}</td>
-    <td class="mono">${a.reason||'-'}</td><td>${a.fails||0}</td></tr>`).join('');
-  $('#t-overview').innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>原因</th><th>失败</th></tr></thead><tbody>${rows||'<tr><td colspan=4 class="empty">暂无数据</td></tr>'}</tbody>`;
+  qrId = r.id;
+  if (r.image) {
+    $('#qrimg').src = r.image.startsWith('data:') ? r.image : 'data:image/png;base64,' + r.image;
+    $('#qrimg').style.display = 'block';
+    $('#qr-badge').innerHTML = '<span class="pill blue"><span class="dot pulsing"></span>等待扫码</span>';
+    $('#qrtext').textContent = '请使用豆包 App 扫描左侧二维码并在手机端点击确认。';
+  } else {
+    $('#qr-badge').innerHTML = '<span class="pill blue"><span class="dot"></span>二维码链接</span>';
+    $('#qrtext').textContent = '二维码链接：' + (r.qrcode_url || '-');
+  }
+  if (qrTimer) clearInterval(qrTimer);
+  qrTimer = setInterval(qrPoll, 2000);
 }
 
-async function loadAccounts(){
-  const d=await api('/api/accounts');
-  const rows=(d.accounts||[]).map(a=>`<tr>
-    <td>${a.name}</td><td class="mono">${a.device_id||'-'}</td><td>${a.note||''}</td>
-    <td>${a.enabled?'<span class="pill ok">启用</span>':'<span class="pill bad">停用</span>'}</td>
-    <td><button class="ghost" onclick="toggleAcc('${a.name}')">${a.enabled?'停用':'启用'}</button>
-        <button class="danger" onclick="delAcc('${a.name}')">删除</button></td></tr>`).join('');
-  $('#t-accounts').innerHTML=`<thead><tr><th>账号</th><th>device_id</th><th>备注</th><th>状态</th><th>操作</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=5 class="empty">还没有账号，先在上面添加</td></tr>'}</tbody>`;
+async function qrPoll() {
+  if (!qrId) return;
+  const r = await api('/api/qr/' + encodeURIComponent(qrId));
+  if (r.error) {
+    $('#qr-badge').innerHTML = '<span class="pill bad"><span class="dot"></span>轮询异常</span>';
+    $('#qrtext').textContent = r.error.message || JSON.stringify(r.error);
+    return;
+  }
+  const stMap = {
+    waiting:   ['blue', '等待扫码', '请打开豆包 App 扫描二维码…'],
+    scanned:   ['warn', '已扫码', '已扫描，请在手机端点击确认登录…'],
+    confirmed: ['ok',   '登录成功', `账号 ${r.account || ''} 已自动加入号池！`],
+    expired:   ['bad',  '已过期', '二维码已过期，请重新生成。'],
+    canceled:  ['bad',  '已取消', '用户已取消扫码登录。']
+  };
+  const info = stMap[r.status] || ['neutral', r.status || '未知', r.message || ''];
+  $('#qr-badge').innerHTML = `<span class="pill ${info[0]}"><span class="dot"></span>${esc(info[1])}</span>`;
+  $('#qrtext').textContent = r.message ? `${info[2]} (${r.message})` : info[2];
+  if (r.status === 'confirmed') {
+    toast('扫码登录成功，账号已入池');
+    qrStop(false);
+    loadAccounts();
+    loadOverview();
+  } else if (r.status === 'expired' || r.status === 'canceled') {
+    qrStop(false);
+  }
 }
 
-async function delAcc(n){if(!confirm('删除账号 '+n+' ？'))return;await api('/api/accounts/'+encodeURIComponent(n),{method:'DELETE'});toast('已删除');loadAccounts();}
-async function toggleAcc(n){await api(`/api/accounts/${encodeURIComponent(n)}/toggle`,{method:'POST'});loadAccounts();}
-
-async function loadCheckin(){
-  const d=await api('/api/checkin');
-  const m={ok:'已签到',already:'今日已签',no_campaign:'无活动',error:'失败'};
-  const rows=(d.results||[]).map(r=>`<tr><td>${r.name}</td>
-    <td>${m[r.status]||r.status}</td><td>${r.message||''}</td>
-    <td>${r.reward||'-'}</td><td class="mono">${r.ts?new Date(r.ts*1000).toLocaleString():'-'}</td></tr>`).join('');
-  const t=$('#t-checkin');
-  if(t) t.innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>说明</th><th>奖励</th><th>时间</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=5 class="empty">还没有签到记录</td></tr>'}</tbody>`;
-  $('#ck-info').textContent=d.enabled
-    ? `自动签到：每天 ${d.hour}:00`
-    : '自动签到：已关闭';
+function qrStop(hide = true) {
+  if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
+  qrId = null;
+  $('#btn-qr-stop').style.display = 'none';
+  if (hide) $('#qrbox').style.display = 'none';
 }
-async function runCheckin(){
-  const btn=$('#btn-checkin'); btn.disabled=true; btn.textContent='签到中…';
-  const r=await api('/api/checkin',{method:'POST'});
-  btn.disabled=false; btn.textContent='立即签到';
-  const n=(r.results||[]).filter(x=>x.status==='ok').length;
-  toast(`签到完成：成功 ${n} 个 / 共 ${(r.results||[]).length} 个`);
+
+/* ---------- 3. 号池与签到 ---------- */
+async function loadPool() {
+  const d = await api('/api/pool');
+  const list = d.accounts || [];
+  const okN = list.filter(a => !a.disabled && !a.cooling).length;
+  const coolN = list.filter(a => !a.disabled && a.cooling).length;
+  const offN = list.filter(a => a.disabled).length;
+  $('#pool-summary').textContent = `总计 ${list.length} · 可用 ${okN} · 冷却 ${coolN} · 停用 ${offN}`;
+
+  const rows = list.map(a => `<tr>
+    <td><strong>${esc(a.name)}</strong>${a.note ? `<div style="font-size:11.5px;color:var(--fg-3)">${esc(a.note)}</div>` : ''}</td>
+    <td>${a.disabled ? '<span class="pill bad"><span class="dot"></span>停用</span>' : (a.cooling ? '<span class="pill warn"><span class="dot"></span>冷却中</span>' : '<span class="pill ok"><span class="dot"></span>可用</span>')}</td>
+    <td>${fmtNum(a.fails || 0)}</td>
+    <td class="mono">${esc(a.device_id || '—')}</td>
+    <td class="mono">${esc(a.reason || '—')}</td>
+    <td><button class="ghost sm" data-checkin="${esc(a.name)}">单独签到</button></td>
+  </tr>`).join('');
+  $('#t-pool').innerHTML = `<thead><tr><th>账号</th><th>状态</th><th>失败次数</th><th>device_id</th><th>原因</th><th>操作</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" class="empty">号池为空，请先导入账号</td></tr>'}</tbody>`;
+}
+
+$('#t-pool').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-checkin]');
+  if (btn) runCheckin(btn.dataset.checkin, btn);
+});
+
+async function loadCheckin() {
+  const d = await api('/api/checkin');
+  const stMap = {
+    ok:          '<span class="pill ok"><span class="dot"></span>已签到</span>',
+    already:     '<span class="pill blue"><span class="dot"></span>今日已签</span>',
+    no_campaign: '<span class="pill neutral"><span class="dot"></span>无活动</span>',
+    error:       '<span class="pill bad"><span class="dot"></span>失败</span>'
+  };
+  const rows = (d.results || []).map(r => `<tr>
+    <td><strong>${esc(r.name)}</strong></td>
+    <td>${stMap[r.status] || `<span class="pill neutral">${esc(r.status)}</span>`}</td>
+    <td>${r.days ? `<span class="tag">连签 ${fmtNum(r.days)} 天</span>` : '—'}</td>
+    <td>${r.reward ? `<span class="pill ok">${esc(r.reward)}</span>` : '—'}</td>
+    <td>${esc(r.message || '—')}</td>
+    <td class="mono">${r.ts ? esc(fmtTime(r.ts)) : '—'}</td>
+  </tr>`).join('');
+  $('#t-checkin').innerHTML = `<thead><tr><th>账号</th><th>状态</th><th>连续天数</th><th>奖励</th><th>说明</th><th>签到时间</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" class="empty">暂无签到记录，可点击上方「全部立即签到」手动触发</td></tr>'}</tbody>`;
+  $('#ck-info').textContent = d.enabled ? `自动签到：每天 ${String(d.hour ?? 9).padStart(2, '0')}:00` : '自动签到：已关闭';
+  $('#ck-server-time').textContent = d.server_time ? `网关时间 ${d.server_time}` : '';
+}
+
+async function runCheckin(name = '', triggerBtn = null) {
+  const btn = triggerBtn || $('#btn-checkin');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '签到中…';
+  const r = await api('/api/checkin' + (name ? '?name=' + encodeURIComponent(name) : ''), { method: 'POST' });
+  btn.disabled = false; btn.textContent = old;
+  if (r.error) {
+    toast('签到失败: ' + (r.error.message || JSON.stringify(r.error)), 'err');
+    return;
+  }
+  const list = r.results || [];
+  const okN = list.filter(x => x.status === 'ok' || x.status === 'already').length;
+  toast(`签到完成：有效 ${okN} / 共 ${list.length}`);
   loadCheckin();
 }
 
-async function loadPool(){
-  const d=await api('/api/pool');
-  const rows=(d.accounts||[]).map(a=>`<tr><td>${a.name}</td>
-    <td>${a.disabled?'<span class="pill bad">停用</span>':(a.cooling?'<span class="pill warn">冷却中</span>':'<span class="pill ok">可用</span>')}</td>
-    <td>${a.fails||0}</td><td class="mono">${a.device_id||'-'}</td>
-    <td class="mono">${a.reason||'-'}</td></tr>`).join('');
-  $('#t-pool').innerHTML=`<thead><tr><th>账号</th><th>状态</th><th>失败</th><th>device</th><th>原因</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=5 class="empty">号池为空</td></tr>'}</tbody>`;
-}
-
-async function loadKeys(){
-  const d=await api('/api/keys');
-  const rows=(d.keys||[]).map(k=>`<tr>
-    <td>${k.name}</td><td class="mono">${k.key_masked||k.key}</td>
-    <td>${new Date((k.created||0)*1000).toLocaleString()}</td>
-    <td><button class="ghost" onclick="copyKey('${k.key||''}')">复制</button>
-        <button class="danger" onclick="delKey('${k.id}','${k.name}')">删除</button></td></tr>`).join('');
-  $('#t-keys').innerHTML=`<thead><tr><th>名称</th><th>密钥</th><th>创建时间</th><th>操作</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=4 class="empty">还没有密钥</td></tr>'}</tbody>`;
+/* ---------- 4. 密钥与用量 ---------- */
+async function loadKeys() {
+  const d = await api('/api/keys');
+  const list = d.keys || [];
+  $('#keys-count').textContent = `${list.length} 把密钥`;
+  const rows = list.map(k => {
+    const shown = revealedKeys.has(k.id);
+    const displayKey = shown ? (k.key || k.key_masked) : (k.key_masked || k.key);
+    return `<tr>
+      <td><strong>${esc(k.name)}</strong></td>
+      <td>
+        <span class="mono copyable" data-copy="${esc(k.key || '')}" title="点击复制完整密钥">${esc(displayKey)}</span>
+      </td>
+      <td class="mono">${esc(fmtTime(k.created))}</td>
+      <td>
+        <div class="row" style="gap:6px">
+          ${k.key ? `<button class="ghost sm" data-kact="reveal" data-kid="${esc(k.id)}">${shown ? '隐藏' : '显示'}</button>` : ''}
+          <button class="ghost sm" data-kact="copy" data-key="${esc(k.key || '')}">复制</button>
+          <button class="danger sm" data-kact="del" data-kid="${esc(k.id)}" data-kname="${esc(k.name)}">删除</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  $('#t-keys').innerHTML = `<thead><tr><th>名称</th><th>密钥</th><th>创建时间</th><th>操作</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="4" class="empty">还没有密钥，请在上方生成第一把密钥</td></tr>'}</tbody>`;
   loadUsage();
 }
-async function loadUsage(){
-  const d=await api('/api/usage?days=7');
-  const rows=(d.usage||[]).map(u=>`<tr><td>${u.name||u.key_id}</td>
-    <td>${u.requests}</td><td>${u.tokens}</td><td>${u.today_requests}</td><td>${u.today_tokens}</td></tr>`).join('');
-  $('#t-usage').innerHTML=`<thead><tr><th>密钥</th><th>请求数</th><th>token</th><th>今日请求</th><th>今日 token</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=5 class="empty">暂无用量（发一次请求后出现）</td></tr>'}</tbody>`;
-}
-async function createKey(){
-  const name=$('#k-name').value.trim();
-  const r=await api('/api/keys',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
-  if(r.key){ $('#k-new').style.display=''; $('#k-new').textContent='新密钥（只显示这一次）：\n'+r.key.key; $('#k-name').value=''; toast('密钥已创建'); loadKeys(); }
-  else toast('创建失败: '+JSON.stringify(r),true);
-}
-async function delKey(id,name){ if(!confirm('删除密钥 '+name+' ？使用它的客户端会立即失效')) return;
-  await api('/api/keys/'+encodeURIComponent(id),{method:'DELETE'}); toast('已删除'); loadKeys(); }
-function copyKey(k){ if(!k) return; navigator.clipboard.writeText(k).then(()=>toast('已复制')); }
 
-async function loadModelsAdmin(){
-  const d=await api('/api/models/admin');
-  const rows=(d.models||[]).map(m=>`<tr>
-    <td>${m.id}${m.is_default?' <span class="pill ok">默认</span>':''}</td>
-    <td>${m.display||''}</td>
-    <td class="mono">${m.model_item_key}</td>
-    <td class="mono">${m.item_id||'-'}</td>
-    <td>${m.context_length?m.context_length.toLocaleString():'-'}</td>
-    <td class="mono">${m.memory_profile||'-'}</td>
-    <td>${m.ratio||'-'}</td>
-    <td><button class="ghost" onclick="testModel('${m.id}',this)">测试</button></td>
-  </tr>`).join('');
-  $('#t-models').innerHTML=`<thead><tr><th>模型名</th><th>显示名</th><th>豆包 key</th><th>item_id</th>
-    <th>上下文</th><th>memory_profile</th><th>倍率</th><th>操作</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=8 class="empty">没有配置模型</td></tr>'}</tbody>`;
-}
-async function testModel(name,btn){
-  btn.disabled=true; const old=btn.textContent; btn.textContent='测试中…';
-  const r=await api('/api/models/test',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:name})});
-  btn.disabled=false; btn.textContent=old;
-  if(r.ok) toast(`${name}：${r.latency_ms}ms · 回复 ${JSON.stringify((r.reply||'').slice(0,20))}`);
-  else toast(`${name} 失败：${r.error||'未知'}`,true);
-}
-
-async function loadLogs(){
-  const d=await api('/api/logs?limit=50');
-  const rows=(d.logs||[]).map(l=>`<tr><td class="mono">${l.ts}</td><td>${l.model}</td>
-    <td>${l.status===200?'<span class="pill ok">200</span>':'<span class="pill bad">'+l.status+'</span>'}</td>
-    <td>${l.latency_ms}ms</td><td>${l.chars}</td><td class="mono">${l.conv||'-'}</td>
-    <td class="mono">${(l.error||'').slice(0,60)}</td></tr>`).join('');
-  $('#t-logs').innerHTML=`<thead><tr><th>时间</th><th>模型</th><th>状态</th><th>耗时</th><th>字符</th><th>会话</th><th>错误</th></tr></thead>
-    <tbody>${rows||'<tr><td colspan=7 class="empty">暂无记录（在测试台发一条就会记录）</td></tr>'}</tbody>`;
-}
-
-async function loadSettings(){
-  const d=await api('/api/settings');
-  $('#gwbase').textContent=d.gw_base||'-';
-  $('#p-settings').textContent=JSON.stringify(d,null,2);
-}
-
-function addMsg(role,text){
-  const box=$('#chat'), div=document.createElement('div');
-  div.className='msg '+role;
-  const r=document.createElement('div'); r.className='reasoning'; r.style.display='none';
-  const c=document.createElement('div'); c.className='content'; c.textContent=text||'';
-  div.appendChild(r); div.appendChild(c); box.appendChild(div); box.scrollTop=box.scrollHeight;
-  return {reasoning:r,content:c};
-}
-function clearChat(){$('#chat').innerHTML='';}
-let chatAbort=null;
-async function loadModels(){
-  const sel=$('#t-model');
-  try{
-    const r=await api('/api/models');
-    const list=(r.models||r.items||[]).map(m=>m.id||m.name).filter(Boolean);
-    sel.innerHTML='';
-    (list.length?list:['doubao','deepseek']).forEach(id=>{
-      const o=document.createElement('option'); o.value=id; o.textContent=id; sel.appendChild(o);
-    });
-    if(list.includes('deepseek')) sel.value='deepseek';
-  }catch(e){ sel.innerHTML='<option>doubao</option>'; }
-}
-function stopChat(){ if(chatAbort){ chatAbort.abort(); } }
-async function sendChat(){
-  const ta=$('#t-msg'), text=ta.value.trim();
-  if(!text) return;
-  ta.value='';
-  addMsg('user',text);
-  const bot=addMsg('bot','');
-  bot.content.textContent='…';
-  $('#btn-send').style.display='none'; $('#btn-stop').style.display='';
-  chatAbort=new AbortController();
-  const t0=Date.now(), stat=$('#t-stat');
-  stat.textContent='生成中…';
-  let resp;
-  try{
-    resp=await fetch('/api/test',{method:'POST',headers:{'Content-Type':'application/json'},
-      signal:chatAbort.signal,
-      body:JSON.stringify({model:$('#t-model').value,conversation_id:$('#t-conv').value,
-                           message:text,reasoning_effort:$('#t-effort').value})});
-  }catch(e){
-    bot.content.textContent='请求失败: '+e;
-    $('#btn-send').style.display=''; $('#btn-stop').style.display='none';
-    return;
-  }
-  const rd=resp.body.getReader(), dec=new TextDecoder();
-  let buf='', content='', reasoning='', started=false;
-  try{
-    for(;;){
-      const {value,done}=await rd.read(); if(done) break;
-      buf+=dec.decode(value,{stream:true});
-      const lines=buf.split('\n'); buf=lines.pop();
-      for(const line of lines){
-        const t=line.trim(); if(!t.startsWith('data:')) continue;
-        const pl=t.slice(5).trim(); if(pl==='[DONE]') continue;
-        let j; try{ j=JSON.parse(pl); }catch(e){ continue; }
-        if(j.error){ bot.content.textContent='错误: '+(j.error.message||JSON.stringify(j.error)); continue; }
-        const d=((j.choices||[])[0]||{}).delta||{};
-        if(d.reasoning_content){ reasoning+=d.reasoning_content; bot.reasoning.style.display='';
-          bot.reasoning.textContent='思考：'+reasoning; }
-        if(d.content){ content+=d.content; bot.content.textContent=content; started=true; }
-      }
-      const secs=((Date.now()-t0)/1000).toFixed(1);
-      stat.textContent=`${secs}s · ${content.length} 字 · 约 ${Math.round(content.length/1.7)} token`;
-      $('#chat').scrollTop=$('#chat').scrollHeight;
-    }
-  }catch(e){
-    if(e.name==='AbortError'){ bot.content.textContent=content||'（已停止）'; }
-  }finally{
-    $('#btn-send').style.display=''; $('#btn-stop').style.display='none'; chatAbort=null;
-  }
-  if(!started && !reasoning && !content) bot.content.textContent='（无输出）';
-  toast('完成，已记入日志');
-  loadOverview();
-}
-document.addEventListener('keydown',function(e){
-  if(e.target && e.target.id==='t-msg' && e.key==='Enter' && !e.shiftKey){
-    e.preventDefault(); sendChat();
+$('#t-keys').addEventListener('click', async e => {
+  const copyEl = e.target.closest('[data-copy]');
+  if (copyEl && copyEl.dataset.copy) { copyText(copyEl.dataset.copy, '密钥已复制'); return; }
+  const btn = e.target.closest('button[data-kact]');
+  if (!btn) return;
+  const act = btn.dataset.kact;
+  if (act === 'reveal') {
+    const id = btn.dataset.kid;
+    if (revealedKeys.has(id)) revealedKeys.delete(id); else revealedKeys.add(id);
+    loadKeys();
+  } else if (act === 'copy') {
+    copyText(btn.dataset.key, '密钥已复制');
+  } else if (act === 'del') {
+    if (!confirm(`确定删除密钥「${btn.dataset.kname}」吗？使用该密钥的客户端将立即失效。`)) return;
+    await api('/api/keys/' + encodeURIComponent(btn.dataset.kid), { method: 'DELETE' });
+    toast('密钥已删除');
+    loadKeys();
   }
 });
 
-async function qrStart(){
-  $('#qrbox').style.display='flex';$('#qrtext').textContent='请求二维码…';
-  const r=await api('/api/qr',{method:'POST'});
-  if(r.error){$('#qrtext').textContent='失败: '+(r.error.message||JSON.stringify(r));return;}
-  qrId=r.id;
-  if(r.image){$('#qrimg').src=r.image.startsWith('data:')?r.image:'data:image/png;base64,'+r.image;
-    $('#qrimg').style.display='block';}else{$('#qrimg').style.display='none';
-    $('#qrtext').textContent='二维码链接: '+(r.qrcode_url||'-');}
-  qrTimer=setInterval(qrPoll,2000);
+async function createKey() {
+  const name = $('#k-name').value.trim();
+  const r = await api('/api/keys', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+  if (r.key && r.key.key) {
+    $('#k-new').textContent = r.key.key;
+    $('#k-new-wrap').style.display = 'flex';
+    $('#k-name').value = '';
+    toast('新密钥已生成');
+    loadKeys();
+  } else {
+    toast('创建失败: ' + (r.error?.message || JSON.stringify(r)), 'err');
+  }
 }
-async function qrPoll(){
-  if(!qrId)return;const r=await api('/api/qr/'+qrId);
-  const m={waiting:'等待扫码…',scanned:'已扫码，请确认',confirmed:'登录成功，已入池',expired:'已过期',canceled:'已取消'};
-  $('#qrtext').textContent=m[r.status]||r.status;
-  if(r.status==='confirmed'){qrStop();loadAccounts();loadOverview();}
-  if(r.status==='expired'||r.status==='canceled')qrStop();
-}
-function qrStop(){if(qrTimer)clearInterval(qrTimer);qrTimer=null;qrId=null;$('#qrbox').style.display='none';}
 
-loadOverview();loadSettings();setInterval(()=>{if($('#v-overview').style.display!=='none')loadOverview();},15000);
+function setUsageDays(days) {
+  usageDays = days;
+  $$('#usage-days-seg button').forEach(b => b.classList.toggle('on', Number(b.dataset.days) === days));
+  loadUsage();
+}
+
+async function loadUsage() {
+  const d = await api('/api/usage?days=' + usageDays);
+  const list = d.usage || [];
+  const maxTok = Math.max(1, ...list.map(u => Number(u.tokens || 0)));
+  const rows = list.map(u => {
+    const pct = Math.round((Number(u.tokens || 0) / maxTok) * 100);
+    return `<tr>
+      <td><strong>${esc(u.name || u.key_id)}</strong></td>
+      <td>${fmtNum(u.requests)}</td>
+      <td>
+        <div class="bar-cell">
+          <div class="bar-track"><i style="width:${pct}%"></i></div>
+          <span>${fmtNum(u.tokens)}</span>
+        </div>
+      </td>
+      <td>${fmtNum(u.today_requests)}</td>
+      <td>${fmtNum(u.today_tokens)}</td>
+      <td class="mono">${u.last_ts ? esc(fmtTime(u.last_ts)) : '—'}</td>
+    </tr>`;
+  }).join('');
+  $('#t-usage').innerHTML = `<thead><tr><th>密钥</th><th>总请求</th><th>总 Token（近 ${usageDays} 天）</th><th>今日请求</th><th>今日 Token</th><th>最近活跃</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6" class="empty">暂无用量记录（发起一次对话请求后将自动统计）</td></tr>'}</tbody>`;
+}
+
+/* ---------- 5. 模型清单 ---------- */
+async function loadModelsAdmin() {
+  const d = await api('/api/models/admin');
+  cachedModels = d.models || [];
+  renderModelsAdmin();
+}
+
+function renderModelsAdmin() {
+  const kw = ($('#model-search').value || '').trim().toLowerCase();
+  const list = cachedModels.filter(m =>
+    !kw || (m.id || '').toLowerCase().includes(kw) || (m.display || '').toLowerCase().includes(kw) || (m.model_item_key || '').toLowerCase().includes(kw)
+  );
+  $('#models-count').textContent = `${cachedModels.length} 个模型`;
+  const rows = list.map(m => {
+    const tr = modelTestResults[m.id];
+    let statusCell = '<span style="color:var(--fg-3);font-size:12px">未测试</span>';
+    if (tr === 'testing') statusCell = '<span class="pill blue"><span class="dot pulsing"></span>测试中…</span>';
+    else if (tr && tr.ok) statusCell = `<span class="pill ok" title="回复: ${esc(tr.reply || '')}">${fmtNum(tr.latency_ms)} ms</span>`;
+    else if (tr && !tr.ok) statusCell = `<span class="pill bad" title="${esc(tr.error || '失败')}">失败</span>`;
+
+    return `<tr>
+      <td>
+        <span class="mono copyable" data-copy-model="${esc(m.id)}" title="点击复制模型名" style="color:var(--fg);font-weight:600">${esc(m.id)}</span>
+        ${m.is_default ? ' <span class="pill ok" style="padding:2px 7px;font-size:11px">默认</span>' : ''}
+      </td>
+      <td>${esc(m.display || '—')}</td>
+      <td class="mono">${esc(m.model_item_key || '—')}</td>
+      <td class="mono">${esc(m.item_id || '—')}</td>
+      <td title="${fmtNum(m.context_length)} tokens">${esc(fmtCtx(m.context_length))}</td>
+      <td class="mono">${esc(m.memory_profile || '—')}</td>
+      <td><span class="tag">${esc(m.ratio || '—')}</span></td>
+      <td>${statusCell}</td>
+      <td><button class="ghost sm" data-test-model="${esc(m.id)}" ${tr === 'testing' ? 'disabled' : ''}>测试</button></td>
+    </tr>`;
+  }).join('');
+  $('#t-models').innerHTML = `<thead><tr><th>模型名</th><th>显示名</th><th>豆包 key</th><th>item_id</th><th>上下文</th><th>memory_profile</th><th>倍率</th><th>连通性</th><th>操作</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="9" class="empty">没有配置模型或未连接网关</td></tr>'}</tbody>`;
+}
+
+$('#t-models').addEventListener('click', e => {
+  const cp = e.target.closest('[data-copy-model]');
+  if (cp) { copyText(cp.dataset.copyModel, `已复制模型名：${cp.dataset.copyModel}`); return; }
+  const btn = e.target.closest('button[data-test-model]');
+  if (btn) testModel(btn.dataset.testModel);
+});
+
+async function testModel(name) {
+  modelTestResults[name] = 'testing';
+  renderModelsAdmin();
+  const r = await api('/api/models/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: name })
+  });
+  modelTestResults[name] = r;
+  renderModelsAdmin();
+  if (r.ok) toast(`${name} 正常 · ${r.latency_ms}ms`);
+  else toast(`${name} 失败：${r.error || '未知错误'}`, 'err');
+  return r;
+}
+
+async function testAllModels() {
+  if (!cachedModels.length) return;
+  const btn = $('#btn-test-all');
+  btn.disabled = true;
+  let okN = 0;
+  for (let i = 0; i < cachedModels.length; i++) {
+    const m = cachedModels[i];
+    btn.textContent = `测试中 (${i + 1}/${cachedModels.length})…`;
+    const r = await testModel(m.id);
+    if (r && r.ok) okN++;
+  }
+  btn.disabled = false;
+  btn.textContent = '全部连通性测试';
+  toast(`全部模型测试完成：${okN} / ${cachedModels.length} 可用`);
+}
+
+/* ---------- 6. 请求日志 ---------- */
+function setLogFilter(f) {
+  logFilter = f;
+  $$('#log-filter-seg button').forEach(b => b.classList.toggle('on', b.dataset.f === f));
+  renderLogs();
+}
+
+async function loadLogs() {
+  const lim = $('#log-limit').value || 50;
+  const d = await api('/api/logs?limit=' + encodeURIComponent(lim));
+  cachedLogs = d.logs || [];
+  renderLogs();
+}
+
+function renderLogs() {
+  const kw = ($('#log-search').value || '').trim().toLowerCase();
+  const list = cachedLogs.filter(l => {
+    if (logFilter === 'ok' && l.status !== 200) return false;
+    if (logFilter === 'err' && l.status === 200) return false;
+    if (!kw) return true;
+    return (l.model || '').toLowerCase().includes(kw) ||
+           (l.conv || '').toLowerCase().includes(kw) ||
+           (l.error || '').toLowerCase().includes(kw);
+  });
+  const rows = list.map((l, idx) => {
+    const ok = l.status === 200;
+    const latCls = Number(l.latency_ms) > 15000 ? 'style="color:var(--warn);font-weight:600"' : '';
+    const errText = l.error || '';
+    return `<tr>
+      <td class="mono" style="white-space:nowrap">${esc(l.ts)}</td>
+      <td><span class="tag">${esc(l.model || '-')}</span></td>
+      <td>${ok ? '<span class="pill ok">200</span>' : `<span class="pill bad">${esc(l.status)}</span>`}</td>
+      <td ${latCls}>${fmtNum(l.latency_ms)} ms</td>
+      <td>${fmtNum(l.chars)}</td>
+      <td class="mono">${esc(l.conv || '—')}</td>
+      <td>${errText ? `<button class="ghost sm" data-log-err="${idx}" title="点击查看完整报错">${esc(errText.slice(0, 42))}${errText.length > 42 ? '…' : ''}</button>` : '<span style="color:var(--fg-3)">—</span>'}</td>
+    </tr>`;
+  }).join('');
+  $('#t-logs').innerHTML = `<thead><tr><th>时间</th><th>模型</th><th>状态</th><th>耗时</th><th>字符</th><th>会话</th><th>错误信息</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="7" class="empty">暂无匹配的请求日志（在测试台发送一条消息后会自动记录）</td></tr>'}</tbody>`;
+  $('#t-logs').dataset.rendered = '1';
+  $('#t-logs')._list = list;
+}
+
+$('#t-logs').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-log-err]');
+  if (!btn) return;
+  const item = ($('#t-logs')._list || [])[Number(btn.dataset.logErr)];
+  if (!item) return;
+  openModal('请求错误详情', `<div style="margin-bottom:10px;font-size:12.5px;color:var(--fg-3)">时间：${esc(item.ts)} · 模型：${esc(item.model)} · 状态：${esc(item.status)}</div><pre>${esc(item.error)}</pre>`);
+});
+
+/* ---------- 7. 对话测试台 + 轻量安全 Markdown ---------- */
+function renderMarkdown(src) {
+  if (!src) return '';
+  const blocks = [];
+  let text = String(src).replace(/\r\n/g, '\n');
+
+  // 提取围栏代码块
+  text = text.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const id = blocks.length;
+    blocks.push({ lang: lang || 'text', code: code.replace(/\n$/, '') });
+    return `\u0000CODEBLOCK_${id}\u0000`;
+  });
+
+  // 处理未闭合的流式代码块
+  text = text.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*)$/, (_, lang, code) => {
+    const id = blocks.length;
+    blocks.push({ lang: lang || 'text', code });
+    return `\u0000CODEBLOCK_${id}\u0000`;
+  });
+
+  function inlineMd(s) {
+    let h = esc(s);
+    h = h.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+    h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    h = h.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+    h = h.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return h;
+  }
+
+  const lines = text.split('\n');
+  let html = '', inUl = false, inOl = false, inTable = false, tableRows = [];
+
+  function closeLists() {
+    if (inUl) { html += '</ul>'; inUl = false; }
+    if (inOl) { html += '</ol>'; inOl = false; }
+  }
+  function flushTable() {
+    if (!inTable) return;
+    if (tableRows.length >= 2) {
+      const head = tableRows[0].map(c => `<th>${inlineMd(c)}</th>`).join('');
+      const body = tableRows.slice(2).map(r => '<tr>' + r.map(c => `<td>${inlineMd(c)}</td>`).join('') + '</tr>').join('');
+      html += `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    } else {
+      html += tableRows.map(r => `<p>${inlineMd(r.join(' | '))}</p>`).join('');
+    }
+    inTable = false; tableRows = [];
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (/^\u0000CODEBLOCK_(\d+)\u0000$/.test(trimmed)) {
+      closeLists(); flushTable();
+      html += trimmed;
+      continue;
+    }
+
+    if (/^\|.+\|$/.test(trimmed)) {
+      closeLists();
+      const cells = trimmed.slice(1, -1).split('|').map(c => c.trim());
+      inTable = true;
+      tableRows.push(cells);
+      continue;
+    } else {
+      flushTable();
+    }
+
+    if (!trimmed) { closeLists(); continue; }
+    if (/^(-{3,}|\*{3,})$/.test(trimmed)) { closeLists(); html += '<hr>'; continue; }
+
+    const hm = line.match(/^(#{1,4})\s+(.+)/);
+    if (hm) {
+      closeLists();
+      const lvl = hm[1].length;
+      html += `<h${lvl}>${inlineMd(hm[2])}</h${lvl}>`;
+      continue;
+    }
+
+    const bq = line.match(/^>\s?(.*)/);
+    if (bq) { closeLists(); html += `<blockquote>${inlineMd(bq[1])}</blockquote>`; continue; }
+
+    const ulm = line.match(/^\s*[-*+]\s+(.+)/);
+    if (ulm) {
+      if (inOl) { html += '</ol>'; inOl = false; }
+      if (!inUl) { html += '<ul>'; inUl = true; }
+      html += `<li>${inlineMd(ulm[1])}</li>`;
+      continue;
+    }
+
+    const olm = line.match(/^\s*\d+\.\s+(.+)/);
+    if (olm) {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (!inOl) { html += '<ol>'; inOl = true; }
+      html += `<li>${inlineMd(olm[1])}</li>`;
+      continue;
+    }
+
+    closeLists();
+    html += `<p>${inlineMd(line)}</p>`;
+  }
+  closeLists(); flushTable();
+
+  html = html.replace(/\u0000CODEBLOCK_(\d+)\u0000/g, (_, idx) => {
+    const b = blocks[Number(idx)];
+    const encoded = encodeURIComponent(b.code);
+    return `<div class="code-wrap"><div class="code-head"><span>${esc(b.lang)}</span><button type="button" data-copy-code="${encoded}">复制代码</button></div><pre><code>${esc(b.code)}</code></pre></div>`;
+  });
+  return html;
+}
+
+function renderChatWelcome() {
+  chatMessagesCount = 0;
+  $('#chat').innerHTML = `<div class="chat-welcome">
+    <div class="empty-ico" style="width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent-fg)">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h4>开始测试豆包网关对话</h4>
+    <p>选择上方模型与思考强度即可发起流式对话，自动记录耗时与日志。</p>
+    <div class="prompt-chips">
+      <button type="button" class="chip" onclick="usePrompt('你好，请简短介绍一下你的能力和特点')">介绍一下你自己</button>
+      <button type="button" class="chip" onclick="usePrompt('用 Python 写一个简洁的快速排序函数，并附带时间复杂度分析')">Python 快速排序示例</button>
+      <button type="button" class="chip" onclick="usePrompt('用 Markdown 表格简明对比 HTTP/1.1、HTTP/2 和 HTTP/3 的核心差异')">Markdown 表格对比</button>
+    </div>
+  </div>`;
+}
+
+function usePrompt(text) {
+  $('#t-msg').value = text;
+  sendChat();
+}
+
+function clearChat() {
+  if (chatAbort) chatAbort.abort();
+  $('#t-stat').textContent = '';
+  renderChatWelcome();
+}
+
+function newConv() {
+  const id = 'panel-' + Math.random().toString(36).slice(2, 8);
+  $('#t-conv').value = id;
+  clearChat();
+  toast('已切换到新会话：' + id);
+}
+
+function addMsg(role, text, modelName = '') {
+  if (chatMessagesCount === 0) $('#chat').innerHTML = '';
+  chatMessagesCount++;
+  const box = $('#chat');
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + role;
+
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.textContent = role === 'user' ? '你' : (modelName || '助手');
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+
+  let rDetails = null, rSummary = null, rBody = null, contentEl = null, actionsEl = null;
+
+  if (role === 'user') {
+    bubble.textContent = text || '';
+  } else {
+    rDetails = document.createElement('details');
+    rDetails.className = 'reason-box';
+    rDetails.style.display = 'none';
+    rDetails.open = true;
+    rSummary = document.createElement('summary');
+    rSummary.innerHTML = '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg><span>思考过程</span>';
+    rBody = document.createElement('div');
+    rBody.className = 'reason-body';
+    rDetails.appendChild(rSummary);
+    rDetails.appendChild(rBody);
+
+    contentEl = document.createElement('div');
+    contentEl.className = 'md';
+    contentEl.textContent = text || '思考中…';
+
+    bubble.appendChild(rDetails);
+    bubble.appendChild(contentEl);
+
+    actionsEl = document.createElement('div');
+    actionsEl.className = 'msg-actions';
+    actionsEl.style.display = 'none';
+  }
+
+  row.appendChild(meta);
+  row.appendChild(bubble);
+  if (actionsEl) row.appendChild(actionsEl);
+  box.appendChild(row);
+  box.scrollTop = box.scrollHeight;
+  return { row, meta, rDetails, rSummary, rBody, content: contentEl, actions: actionsEl };
+}
+
+$('#chat').addEventListener('click', e => {
+  const btn = e.target.closest('button[data-copy-code]');
+  if (btn) copyText(decodeURIComponent(btn.dataset.copyCode), '代码已复制');
+});
+
+async function loadModels() {
+  const sel = $('#t-model');
+  try {
+    const r = await api('/api/models');
+    const list = (r.models || r.items || []).map(m => m.id || m.name).filter(Boolean);
+    sel.innerHTML = '';
+    (list.length ? list : ['deepseek-v4-flash', 'doubao-2.1-pro', 'kimi-k3.1-pro']).forEach(id => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = id;
+      sel.appendChild(o);
+    });
+    if (list.includes('deepseek-v4-flash')) sel.value = 'deepseek-v4-flash';
+    else if (list.includes('deepseek')) sel.value = 'deepseek';
+  } catch {
+    sel.innerHTML = '<option value="deepseek-v4-flash">deepseek-v4-flash</option>';
+  }
+}
+
+function stopChat() { if (chatAbort) chatAbort.abort(); }
+
+async function sendChat() {
+  const ta = $('#t-msg'), text = ta.value.trim();
+  if (!text) return;
+  const model = $('#t-model').value || 'deepseek-v4-flash';
+  ta.value = '';
+  ta.style.height = 'auto';
+
+  addMsg('user', text);
+  const bot = addMsg('bot', '连接网关中…', model);
+  $('#btn-send').style.display = 'none';
+  $('#btn-stop').style.display = '';
+  chatAbort = new AbortController();
+
+  const t0 = Date.now(), stat = $('#t-stat');
+  stat.textContent = '请求中…';
+
+  let resp;
+  try {
+    resp = await fetch('/api/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: chatAbort.signal,
+      body: JSON.stringify({
+        model,
+        conversation_id: $('#t-conv').value.trim() || 'panel-test',
+        message: text,
+        reasoning_effort: $('#t-effort').value
+      })
+    });
+  } catch (e) {
+    bot.content.textContent = '请求失败: ' + e.message;
+    $('#btn-send').style.display = ''; $('#btn-stop').style.display = 'none';
+    return;
+  }
+
+  const rd = resp.body.getReader(), dec = new TextDecoder();
+  let buf = '', content = '', reasoning = '', started = false, reasonCollapsed = false;
+  try {
+    for (;;) {
+      const { value, done } = await rd.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        const t = line.trim();
+        if (!t.startsWith('data:')) continue;
+        const pl = t.slice(5).trim();
+        if (pl === '[DONE]') continue;
+        let j;
+        try { j = JSON.parse(pl); } catch { continue; }
+        if (j.error) {
+          bot.content.innerHTML = `<span style="color:var(--bad)">错误：${esc(j.error.message || JSON.stringify(j.error))}</span>`;
+          started = true;
+          continue;
+        }
+        const d = ((j.choices || [])[0] || {}).delta || {};
+        if (d.reasoning_content) {
+          reasoning += d.reasoning_content;
+          bot.rDetails.style.display = '';
+          bot.rBody.textContent = reasoning;
+          bot.rSummary.querySelector('span').textContent = `思考过程（${reasoning.length} 字）`;
+        }
+        if (d.content) {
+          if (reasoning && !reasonCollapsed) {
+            bot.rDetails.open = false;
+            reasonCollapsed = true;
+          }
+          content += d.content;
+          bot.content.innerHTML = renderMarkdown(content);
+          started = true;
+        }
+      }
+      const secs = Math.max(0.1, (Date.now() - t0) / 1000);
+      const estTok = Math.round(content.length / 1.7);
+      const speed = Math.round(estTok / secs);
+      stat.textContent = `${secs.toFixed(1)}s · ${content.length} 字 · 约 ${estTok} tok (${speed} tok/s)`;
+      $('#chat').scrollTop = $('#chat').scrollHeight;
+    }
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      if (!content) bot.content.textContent = '（已手动停止生成）';
+    }
+  } finally {
+    $('#btn-send').style.display = '';
+    $('#btn-stop').style.display = 'none';
+    chatAbort = null;
+  }
+
+  if (!started && !reasoning && !content) {
+    bot.content.textContent = '（无输出）';
+  }
+  if (content) {
+    const secs = ((Date.now() - t0) / 1000).toFixed(1);
+    bot.actions.style.display = 'flex';
+    const cpBtn = document.createElement('button');
+    cpBtn.className = 'ghost sm';
+    cpBtn.textContent = '复制回复';
+    cpBtn.onclick = () => copyText(content, '回复已复制');
+    const tm = document.createElement('span');
+    tm.className = 'mono';
+    tm.style.fontSize = '11.5px';
+    tm.textContent = `耗时 ${secs}s`;
+    bot.actions.appendChild(cpBtn);
+    bot.actions.appendChild(tm);
+  }
+  toast('对话完成，已写入请求日志');
+  loadOverview();
+}
+
+$('#t-msg').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+$('#t-msg').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 160) + 'px';
+});
+
+/* ---------- 8. 设置与接入 ---------- */
+async function loadSettings() {
+  const d = await api('/api/settings');
+  cachedSettings = d || {};
+  $('#gwbase').textContent = d.gw_base || '-';
+  $('#p-settings').textContent = JSON.stringify(d, null, 2);
+
+  $('#settings-cards').innerHTML = `
+    <div class="kv-item">
+      <div class="k">网关地址（GW_BASE）</div>
+      <div class="v">${esc(d.gw_base || '—')}</div>
+    </div>
+    <div class="kv-item">
+      <div class="k">面板调用密钥（GW_KEY）</div>
+      <div class="v">${d.gw_key_set ? '<span class="pill ok"><span class="dot"></span>已配置</span>' : '<span class="pill warn"><span class="dot"></span>未设置（可在环境变量中配置）</span>'}</div>
+    </div>
+    <div class="kv-item">
+      <div class="k">账号同步文件（ACCOUNTS_FILE）</div>
+      <div class="v">${esc(d.accounts_file || '—')}</div>
+    </div>
+    <div class="kv-item">
+      <div class="k">面板数据库路径（DB_PATH）</div>
+      <div class="v">${esc(d.db_path || '—')}</div>
+    </div>`;
+  renderSnippet();
+}
+
+function setSnippet(kind) {
+  currentSnippet = kind;
+  $$('#snippet-seg button').forEach(b => b.classList.toggle('on', b.dataset.s === kind));
+  renderSnippet();
+}
+
+function renderSnippet() {
+  const gw = (cachedSettings.gw_base || 'http://127.0.0.1:8850').replace(/\/$/, '');
+  const baseV1 = gw + '/v1';
+  let code = '';
+  if (currentSnippet === 'python') {
+    code = `from openai import OpenAI
+
+client = OpenAI(
+    base_url="${baseV1}",
+    api_key="sk-请替换为你生成的密钥",
+)
+
+resp = client.chat.completions.create(
+    model="deepseek-v4-flash",
+    messages=[{"role": "user", "content": "你好，介绍一下你自己"}],
+)
+print(resp.choices[0].message.content)`;
+  } else if (currentSnippet === 'curl') {
+    code = `curl ${baseV1}/chat/completions \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer sk-请替换为你生成的密钥" \\
+  -d '{
+    "model": "deepseek-v4-flash",
+    "stream": true,
+    "messages": [{"role": "user", "content": "你好"}]
+  }'`;
+  } else {
+    code = `# OpenAI 兼容客户端（Cherry Studio / ChatBox / OneAPI 等）
+API 地址 (Base URL): ${baseV1}
+API 密钥 (API Key):  在左侧「密钥与用量」页签生成
+
+# 环境变量方式
+export OPENAI_BASE_URL="${baseV1}"
+export OPENAI_API_KEY="sk-请替换为你生成的密钥"`;
+  }
+  $('#snippet-code').textContent = code;
+}
+
+/* ---------- 初始化 ---------- */
+renderThemeIcon();
+renderChatWelcome();
+loadOverview();
+loadSettings();
+setInterval(() => {
+  if (currentView === 'overview' && !document.hidden) loadOverview();
+}, 15000);
 </script>
 </body>
 </html>

@@ -57,26 +57,44 @@ def _current_user(request) -> str | None:
 
 LOGIN_HTML = """<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>登录 · 豆包管理器</title>
+<script>
+(function(){try{var t=localStorage.getItem('doubao_theme');if(!t)t=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <style>
-*{box-sizing:border-box}body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
-background:#0b0e13;color:#e6edf3;font:14px/1.6 -apple-system,"Segoe UI","PingFang SC",sans-serif}
-.box{width:340px;background:#141a23;border:1px solid #1f2833;border-radius:14px;padding:26px}
-h1{margin:0 0 4px;font-size:17px}p.sub{margin:0 0 20px;color:#8b949e;font-size:12px}
-label{display:block;font-size:12px;color:#8b949e;margin:12px 0 6px}
-input{width:100%;background:#0d131a;border:1px solid #1f2833;color:#e6edf3;border-radius:8px;padding:10px 12px;font:inherit}
-input:focus{outline:none;border-color:#2ea043}
-button{width:100%;margin-top:18px;background:#2ea043;color:#04140a;border:0;border-radius:8px;
-padding:11px;font-weight:600;font-size:14px;cursor:pointer}button:hover{background:#3fb950}
-.err{color:#f85149;font-size:12px;margin-top:10px;min-height:16px}
+:root{--bg:#f6f7f9;--card:#ffffff;--border:#e4e7ec;--border2:#d0d5dd;--fg:#101828;--fg2:#667085;--accent:#10b981;--accent-h:#059669;--ring:rgba(16,185,129,.22);--bad:#dc2626;--bad-bg:rgba(220,38,38,.09);--shadow:0 12px 36px rgba(16,24,40,.08)}
+[data-theme="dark"]{--bg:#0a0d12;--card:#11161f;--border:#222b38;--border2:#313e52;--fg:#f0f4f8;--fg2:#8b98ac;--accent:#10b981;--accent-h:#34d399;--ring:rgba(16,185,129,.28);--bad:#f87171;--bad-bg:rgba(248,113,113,.14);--shadow:0 16px 48px rgba(0,0,0,.48)}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+background:var(--bg);color:var(--fg);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Inter","PingFang SC","Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.theme-btn{position:fixed;top:18px;right:18px;width:36px;height:36px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--fg2);cursor:pointer;display:grid;place-items:center}
+.theme-btn:hover{color:var(--fg);border-color:var(--border2)}
+.box{width:100%;max-width:368px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:30px 28px;box-shadow:var(--shadow)}
+.head{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;display:grid;place-items:center;box-shadow:0 4px 12px rgba(16,185,129,.3);flex:none}
+h1{margin:0;font-size:17px;font-weight:700;letter-spacing:-.01em}p.sub{margin:2px 0 0;color:var(--fg2);font-size:12.5px}
+label{display:block;font-size:12.5px;font-weight:500;color:var(--fg2);margin:14px 0 6px}
+.pw-wrap{position:relative}
+input{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--fg);border-radius:9px;padding:10px 12px;font:inherit;transition:border-color .15s,box-shadow .15s}
+.pw-wrap input{padding-right:40px}
+input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.pw-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--fg2);cursor:pointer;padding:4px;font-size:12px}
+button.submit{width:100%;margin-top:20px;background:var(--accent);color:#fff;border:0;border-radius:9px;
+padding:11px;font-weight:600;font-size:14px;cursor:pointer;transition:background .15s}button.submit:hover{background:var(--accent-h)}
+.err{margin-top:14px;font-size:12.5px;color:var(--bad);background:var(--bad-bg);border-radius:8px;padding:8px 11px}
+.err:empty{display:none}
 </style></head><body>
+<button class="theme-btn" type="button" onclick="toggleTheme()" title="切换主题" aria-label="切换主题">◐</button>
 <form class="box" method="post" action="/login">
-  <h1>豆包管理器</h1>
-  <p class="sub">doubao2api 号池控制台</p>
-  <label>用户名</label><input name="username" autocomplete="username" autofocus>
-  <label>密码</label><input name="password" type="password" autocomplete="current-password">
-  <button type="submit">登录</button>
+  <div class="head">
+    <div class="logo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+    <div><h1>豆包管理器</h1><p class="sub">doubao2api 号池控制台</p></div>
+  </div>
+  <label>用户名</label><input name="username" autocomplete="username" placeholder="请输入用户名" autofocus required>
+  <label>密码</label><div class="pw-wrap"><input id="pw" name="password" type="password" autocomplete="current-password" placeholder="请输入密码" required><button class="pw-eye" type="button" onclick="var i=document.getElementById('pw');i.type=i.type==='password'?'text':'password';this.textContent=i.type==='password'?'显示':'隐藏'">显示</button></div>
+  <button class="submit" type="submit">登 录</button>
   <div class="err">__ERR__</div>
-</form></body></html>"""
+</form>
+<script>function toggleTheme(){var n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('doubao_theme',n)}catch(e){}}</script>
+</body></html>"""
 
 
 @app.middleware("http")
